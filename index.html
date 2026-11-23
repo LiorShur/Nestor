@@ -356,9 +356,9 @@ setTimeout(function() {
   </div>
 
   <!-- Acknowledged overlay (compact modal) -->
-  <div class="ack-overlay" id="ack-overlay">
+  <div class="ack-overlay" id="ack-overlay" role="alertdialog" aria-modal="true" aria-labelledby="ack-title" aria-describedby="ack-who">
     <div class="ack-big-icon">✅</div>
-    <div class="ack-title" data-t="Help is on the way">Help is on the way</div>
+    <div class="ack-title" id="ack-title" data-t="Help is on the way">Help is on the way</div>
     <div class="ack-who" id="ack-who">Your carer is coming</div>
     <div class="ack-type" id="ack-type"></div>
     <button class="ack-dismiss-btn" onclick="dismissAckOverlay()">OK</button>
