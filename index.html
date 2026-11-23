@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -249,7 +249,7 @@ setTimeout(function() {
       <span class="needs-trigger-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></span> What do you need?
     </button>
     <!-- Selected needs indicator (shows after selection) -->
-    <div class="needs-selected" id="needs-selected" style="display:none"></div>
+    <div class="needs-selected" id="needs-selected" style="display:none" aria-live="polite"></div>
 
     <!-- Big call button with emergency overlay -->
     <div class="call-ring-wrap">
@@ -283,11 +283,11 @@ setTimeout(function() {
     <div class="offline-call-msg" id="offline-call-msg" data-t="📵 No internet connection — tap for phone fallback">📵 No internet connection — tap for phone fallback</div>
 
     <!-- ═══ Needs Bottom Sheet ═══ -->
-    <div class="needs-sheet" id="needs-sheet">
+    <div class="needs-sheet" id="needs-sheet" role="dialog" aria-modal="true" aria-labelledby="needs-sheet-title">
       <div class="needs-sheet-card">
         <div class="needs-sheet-header">
-          <div class="needs-sheet-title" data-t="What do you need?">What do you need?</div>
-          <button class="sheet-close" onclick="closeNeedsSheet()">✕</button>
+          <div class="needs-sheet-title" id="needs-sheet-title" data-t="What do you need?">What do you need?</div>
+          <button class="sheet-close" onclick="closeNeedsSheet()" aria-label="Close help choices">✕</button>
         </div>
         <div class="needs-sheet-list">
           <button class="need-row" data-type="water"      onclick="selectNeed(this)" id="need-water">     <span class="need-row-icon">💧</span><span class="need-row-label" data-t="Water">Water</span></button>
