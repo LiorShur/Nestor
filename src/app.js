@@ -3286,7 +3286,7 @@ function setPatientStatus(status) {
   }
   if (status === 'ready') {
     icon.textContent='🆘'; lbl.textContent=t('Call for Help');
-    pill.classList.add('online'); txt.textContent='📡 ' + t('Carer notified by push');
+    pill.classList.add('online'); txt.textContent=t('Ready to request help');
     fallback.classList.remove('show');
     if (offlineMsg) offlineMsg.classList.remove('show');
     btn.onclick = patientCallMain; // restore normal handler
@@ -3307,9 +3307,11 @@ function selectNeed(btn) {
   if (PS.selectedNeeds.has(type)) {
     PS.selectedNeeds.delete(type);
     btn.classList.remove('selected');
+    btn.setAttribute('aria-pressed', 'false');
   } else {
     PS.selectedNeeds.add(type);
     btn.classList.add('selected');
+    btn.setAttribute('aria-pressed', 'true');
   }
   const customRow = document.getElementById('custom-input-row');
   if (PS.selectedNeeds.has('custom')) {
@@ -3345,6 +3347,7 @@ function openNeedsSheet() {
   if (sheet) {
     sheet.classList.add('open');
     sheet.addEventListener('click', _needsSheetBackdrop);
+    sheet.querySelector('.sheet-close')?.focus();
   }
 }
 function closeNeedsSheet() {
@@ -3352,6 +3355,7 @@ function closeNeedsSheet() {
   if (sheet) {
     sheet.classList.remove('open');
     sheet.removeEventListener('click', _needsSheetBackdrop);
+    document.getElementById('needs-trigger')?.focus();
   }
   _updateNeedsIndicator();
 }
