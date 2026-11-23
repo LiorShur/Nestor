@@ -1,7 +1,7 @@
 
 // ── Platform detection & base path for Capacitor compatibility ──
 const IS_NATIVE = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
-const BASE_PATH = IS_NATIVE ? '.' : '';
+const BASE_PATH = IS_NATIVE ? '.' : import.meta.env.BASE_URL.replace(/\/$/, '');
 
 // ── Lazy-loading helpers for heavy libraries ──
 const _loadedScripts = {};
@@ -5326,8 +5326,8 @@ async function testNotification() {
     const now = new Date().toLocaleTimeString();
     await reg.showNotification('CareCall Test', {
       body: `Test at ${now} — if you see this, notifications work!`,
-      icon: '/CareCall/icon-192.svg',
-      badge: '/CareCall/icon-192.svg',
+      icon: BASE_PATH + '/icon-192.svg',
+      badge: BASE_PATH + '/icon-192.svg',
       vibrate: [300, 100, 300],
       requireInteraction: true,
       tag: 'carecall-test',

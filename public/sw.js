@@ -4,7 +4,7 @@ importScripts('https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js'
 importScripts('https://www.gstatic.com/firebasejs/9.22.2/firebase-messaging-compat.js');
 
 const CACHE = 'carecall-v6';
-const BASE = '';
+const BASE = new URL(self.registration.scope).pathname.replace(/\/$/, '');
 const APP_SHELL = [
   BASE + '/index.html',
   BASE + '/manifest.json',
