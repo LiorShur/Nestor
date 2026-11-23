@@ -1,0 +1,28 @@
+{
+  "appId": "com.carecall.app",
+  "appName": "CareCall",
+  "webDir": "www",
+  "server": {
+    "androidScheme": "https",
+    "allowNavigation": [
+      "*.firebaseio.com",
+      "*.googleapis.com",
+      "*.firebase.com",
+      "*.gstatic.com"
+    ]
+  },
+  "plugins": {
+    "SplashScreen": {
+      "launchShowDuration": 0,
+      "launchAutoHide": true
+    },
+    "LocalNotifications": {
+      "smallIcon": "ic_stat_carecall",
+      "iconColor": "#0EA5E9"
+    }
+  },
+  "android": {
+    "allowMixedContent": false,
+    "backgroundColor": "#0D1520"
+  }
+}

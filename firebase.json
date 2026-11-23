@@ -1,0 +1,21 @@
+{
+  "database": {
+    "rules": "database.rules.json"
+  },
+  "functions": {
+    "source": ".",
+    "ignore": [
+      "*.html",
+      "*.svg",
+      "*.md",
+      "sw.js",
+      "manifest.json",
+      "database.rules.json",
+      "node_modules",
+      ".git",
+      "android",
+      "www",
+      "capacitor.config.json"
+    ]
+  }
+}

@@ -1,0 +1,76 @@
+{
+  "rules": {
+    "carecall": {
+      // ── Public directory ────────────────────────────────────
+      // code -> { uid, name, role } so any authenticated user can
+      // resolve a pair-code to an addressable uid. Writes only
+      // allowed when the nested uid matches the caller (i.e. you
+      // can only publish a code that points at yourself).
+      "codeIndex": {
+        "$code": {
+          ".read":  "auth != null",
+          ".write": "auth != null && (!data.exists() || data.child('uid').val() === auth.uid) && (!newData.exists() || newData.child('uid').val() === auth.uid)"
+        }
+      },
+
+      // ── User profile + pairing inbox ─────────────────────────
+      // Strictly self-read / self-write for everything under users,
+      // with one carve-out: pendingPairs accepts incoming pair
+      // requests from other authenticated users so the target can
+      // approve or reject them. The direct "write to someone else's
+      // rooms list" attack is blocked here because /users/{uid}/rooms
+      // falls under the self-only default rule.
+      "users": {
+        "$uid": {
+          ".read":  "auth != null && auth.uid === $uid",
+          ".write": "auth != null && auth.uid === $uid",
+          "pendingPairs": {
+            "$reqId": {
+              // The target ($uid) always has full access.
+              // The sender can read their own request (so they see
+              // the approved/rejected status update).
+              // Anyone authenticated may create a NEW request whose
+              // fromUid field equals their own uid; they cannot
+              // subsequently modify an existing record.
+              ".read":  "auth != null && (auth.uid === $uid || auth.uid === data.child('fromUid').val())",
+              ".write": "auth != null && (auth.uid === $uid || (!data.exists() && newData.child('fromUid').val() === auth.uid))"
+            }
+          }
+        }
+      },
+
+      // ── Rooms (shared state for every paired conversation) ──
+      // Only members of the room can read or write the room's data.
+      // A not-yet-existing room may be created by any authenticated
+      // user (that's what happens during the approval handshake).
+      "rooms": {
+        "$roomId": {
+          ".read":  "auth != null && data.child('members').child(auth.uid).exists()",
+          ".write": "auth != null && (!data.exists() || data.child('members').child(auth.uid).exists())",
+          "members": {
+            "$memberUid": {
+              // A fresh user can self-join (initial write) or be
+              // added by an existing member.
+              ".write": "auth != null && (auth.uid === $memberUid || !data.parent().exists() || data.parent().child(auth.uid).exists())"
+            }
+          },
+          "calls": {
+            ".indexOn": ["timestamp"]
+          },
+          "handoffHistory": {
+            ".indexOn": ["at"]
+          },
+          "medications": {
+            ".indexOn": ["timestamp"]
+          },
+          "calendar": {
+            ".indexOn": ["date", "createdAt"]
+          },
+          "vitals": {
+            ".indexOn": ["recordedAt", "date", "type"]
+          }
+        }
+      }
+    }
+  }
+}

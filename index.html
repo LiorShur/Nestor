@@ -1,0 +1,1126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="CareCall">
+<title>CareCall</title>
+
+<!-- Firebase -->
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-messaging-compat.js"></script>
+<!-- jsPDF, html5-qrcode, Leaflet: lazy-loaded on first use (see loadScript/loadCSS helpers) -->
+
+<!-- PWA -->
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#FFFFFF">
+<link rel="apple-touch-icon" href="/icon-192.svg">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@400;500;600;700;800&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+<!-- Native bridge moved to src/native.js -->
+
+<!-- styles loaded via Vite -->
+</head>
+<body>
+
+<!-- Loading overlay -->
+<div id="loading">
+  <div class="loading-logo">Care<em>Call</em></div>
+  <div class="spinner"></div>
+</div>
+<script>
+// Independent failsafe: if loading screen is still visible after 6s,
+// force it gone and show welcome screen. This runs even if boot() crashes.
+setTimeout(function() {
+  var ld = document.getElementById('loading');
+  if (ld && !ld.classList.contains('gone')) {
+    ld.classList.add('gone');
+    var welcome = document.getElementById('s-welcome');
+    if (welcome) welcome.classList.add('active');
+  }
+}, 6000);
+</script>
+
+<!-- ══ WELCOME ══ -->
+<div class="screen" id="s-welcome">
+  <div class="setup-step-label" data-t="Step 1 of 4">STEP 1 OF 4</div>
+  <div class="setup-logo">Care<em>Call</em></div>
+  <div class="setup-tagline" data-t="Simple, reliable care alerts for home and assisted living">Simple, reliable care alerts for home and assisted living</div>
+  <div class="role-grid">
+    <div class="role-card patient" onclick="setupChooseRole('patient')" role="button" tabindex="0" aria-label="I need care">
+      <div class="role-icon icon-circle teal"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg></div>
+      <div class="role-info"><h3 data-t="I need care">I need care</h3><p data-t="Patient, resident, or assisted person">Patient, resident, or assisted person — call your carers with one tap</p></div>
+    </div>
+    <div class="role-card carer" onclick="setupChooseRole('carer')" role="button" tabindex="0" aria-label="I provide care">
+      <div class="role-icon icon-circle pink"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg></div>
+      <div class="role-info"><h3 data-t="I provide care">I provide care</h3><p data-t="Carer or nurse">Carer or nurse — receive and respond to calls</p></div>
+    </div>
+    <div class="role-card family" onclick="setupChooseRole('family')" role="button" tabindex="0" aria-label="Family member">
+      <div class="role-icon icon-circle blue"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></div>
+      <div class="role-info"><h3 data-t="Family member">Family member</h3><p data-t="View call history and care notes">View call history, patient status, and care notes — read-only</p></div>
+    </div>
+  </div>
+  <div class="welcome-footer">
+    <button class="btn-link welcome-signin" onclick="showReturningSignIn()" data-t="Already have an account? Sign in">Already have an account? Sign in</button>
+    <button class="btn-link" onclick="showLanguageModal()" style="font-size:0.85rem;opacity:0.7" data-t="🌐 Language">🌐 Language</button>
+  </div>
+</div>
+
+<!-- ══ SETUP: NAME ══ -->
+<div class="screen" id="s-name">
+  <div class="setup-step-label">STEP 2 OF 4</div>
+  <div class="setup-title" data-t="What's your name?">What's your name?</div>
+  <div class="setup-sub" data-t="This is shown to the other person">This is shown to the other person when you call or respond</div>
+  <div class="input-group">
+    <div class="input-label" data-t="Your name">Your name</div>
+    <input class="text-input" id="name-input" type="text" placeholder="e.g. Margaret" autocomplete="given-name" maxlength="30">
+  </div>
+  <button class="btn btn-primary" onclick="setupSaveName()" data-t="Continue →">Continue →</button>
+  <button class="btn-link" onclick="showScreen('s-welcome')" data-t="← Back">← Back</button>
+</div>
+
+<!-- ══ SETUP: AUTH (register / login) ══ -->
+<div class="screen" id="s-auth">
+  <div class="setup-step-label">STEP 3 OF 4</div>
+  <div class="setup-title" id="auth-title" data-t="Create your account">Create your account</div>
+  <div class="setup-sub" id="auth-sub" data-t="Your data is protected by email and password">Your data is protected by email and password</div>
+
+  <!-- Tab bar: Register / Login -->
+  <div class="auth-tabs">
+    <button class="auth-tab selected" id="auth-tab-register" onclick="_authSwitchTab('register')" data-t="Register">Register</button>
+    <button class="auth-tab" id="auth-tab-login" onclick="_authSwitchTab('login')" data-t="Log in">Log in</button>
+  </div>
+
+  <div style="width:100%;max-width:360px;display:flex;flex-direction:column;gap:10px">
+    <div class="input-group">
+      <div class="input-label" data-t="Email">Email</div>
+      <input class="text-input" id="auth-email" type="email" placeholder="you@example.com" autocomplete="email" inputmode="email">
+    </div>
+    <div class="input-group">
+      <div class="input-label" data-t="Password">Password</div>
+      <input class="text-input" id="auth-password" type="password" placeholder="Min 8 characters" autocomplete="new-password" minlength="8">
+      <div class="auth-strength" id="auth-strength"></div>
+    </div>
+    <div class="input-group" id="auth-confirm-group">
+      <div class="input-label" data-t="Confirm password">Confirm password</div>
+      <input class="text-input" id="auth-confirm" type="password" placeholder="Re-enter password" autocomplete="new-password">
+    </div>
+    <div class="input-group" id="auth-phone-group">
+      <div class="input-label" data-t="Phone number (optional)">Phone number (optional)</div>
+      <input class="text-input" id="auth-phone" type="tel" placeholder="+972-50-1234567" autocomplete="tel" inputmode="tel">
+      <div style="font-size:0.68rem;color:#6B7280;margin-top:2px" data-t="Used as offline fallback">Used as offline fallback if internet is down</div>
+    </div>
+
+    <!-- Consent (register only) -->
+    <label class="auth-consent" id="auth-consent-row">
+      <input type="checkbox" id="auth-consent-check">
+      <span data-t="I agree to the collection and use of my care data as described in the app. My information will only be shared with my connected carers.">I agree to the collection and use of my care data as described in the app. My information will only be shared with my connected carers.</span>
+    </label>
+
+    <div class="input-err" id="auth-err" style="text-align:center"></div>
+    <button class="btn btn-primary" id="auth-submit-btn" onclick="_authSubmit()" data-t="Create Account">Create Account</button>
+    <button class="btn-link" id="auth-forgot" onclick="_authForgotPassword()" style="display:none" data-t="Forgot password?">Forgot password?</button>
+  </div>
+  <button class="btn-link" onclick="showScreen('s-name')" data-t="← Back">← Back</button>
+</div>
+
+<!-- ══ SETUP: YOUR CODE ══ -->
+<div class="screen" id="s-room">
+  <div class="setup-step-label">STEP 3 OF 3</div>
+  <div class="setup-progress-bar"><div class="setup-progress-fill" style="width:100%"></div></div>
+  <div class="setup-title" id="room-title">Your Personal Code</div>
+  <div class="setup-sub" id="room-sub">Share this code so others can connect to you</div>
+
+  <!-- Personal code display (shown for both roles) -->
+  <div style="width:100%;max-width:360px;display:flex;flex-direction:column;gap:14px;align-items:center;">
+    <div class="room-code-card">
+      <div class="room-code-label" data-t="Your Code">Your Code</div>
+      <div class="room-code-value" id="new-room-code">····</div>
+      <div class="room-code-hint" id="room-code-hint" data-t="Share this with your carer or patient">Share this with your carer or patient</div>
+    </div>
+
+    <!-- Connect to someone now, or skip -->
+    <div style="display:flex;align-items:center;gap:12px;width:100%">
+      <div style="flex:1;height:1px;background:#E5E5E3"></div>
+      <span style="font-size:0.75rem;color:#6B7280" id="connect-divider-text">add a connection now, or skip</span>
+      <div style="flex:1;height:1px;background:#E5E5E3"></div>
+    </div>
+    <div class="input-group">
+      <div class="input-label" id="connect-input-label">Their code</div>
+      <input class="text-input big" id="room-code-input" type="text" placeholder="CODE" maxlength="8" autocomplete="off" autocorrect="off" autocapitalize="characters">
+      <div style="font-size:0.68rem;color:#6B7280;margin-top:2px" data-t="e.g. ABCD12">e.g. ABCD12</div>
+      <div class="input-err" id="room-err"></div>
+      <button type="button" class="qr-scan-btn" style="width:100%;justify-content:center;margin-top:8px" onclick="openQrScanner('setup')" data-t="📷 Scan QR instead">📷 Scan QR instead</button>
+    </div>
+    <button class="btn btn-primary" id="room-join-btn" onclick="setupConnect()" data-t="Connect →">Connect →</button>
+    <button class="btn btn-ghost" onclick="setupSkipConnect()" data-t="Skip for now →">Skip for now →</button>
+  </div>
+
+  <button class="btn-link" onclick="showScreen('s-name')">← Back</button>
+</div>
+
+<!-- ══ PATIENT SCREEN ══ -->
+<div class="screen" id="s-patient">
+  <div class="topbar-brand">
+    <div class="topbar-brand-left">
+      <div class="topbar-heart-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg></div>
+      <div class="topbar-brand-text"><span class="topbar-brand-name">CareCall</span><span class="topbar-brand-role">Patient</span></div>
+    </div>
+    <div class="topbar-brand-actions">
+      <button class="nmt-topbar-btn" onclick="enterNightMode()" title="Night Mode" aria-label="Night Mode">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+      </button>
+      <button class="patient-avatar-btn" id="p-avatar-btn" onclick="openProfileModal(S.uid)"></button>
+    </div>
+  </div>
+  <div class="topbar-separator"></div>
+  <div class="patient-header">
+    <div>
+      <div class="patient-name" id="p-name">····</div>
+      <div class="patient-greeting" id="p-greeting" data-t="Good morning,">How can we help you today?</div>
+    </div>
+  </div>
+  <!-- Hidden conn-pill + room-badge preserved for existing JS references -->
+  <div class="conn-bar" style="display:none">
+    <div class="conn-pill offline" id="p-conn-pill">
+      <div class="cpill-dot"></div><span id="p-conn-txt">Connecting…</span>
+    </div>
+  </div>
+  <div style="display:none">
+    <div class="room-badge" id="p-room-badge" onclick="toggleRoomDropdown('p')">
+      <span id="p-room-label">····</span>
+      <div class="room-badge-dropdown" id="p-room-dropdown"></div>
+    </div>
+  </div>
+  <div class="my-carers" id="my-carers">
+    <div class="carer-primary" id="carer-primary" onclick="toggleCarerDropdown()">
+      <div class="carer-avatar" id="primary-carer-avatar"></div>
+      <div class="carer-info">
+        <div class="carer-name" id="primary-carer-name">No carer connected</div>
+        <div class="carer-status" id="primary-carer-status">Connecting…</div>
+      </div>
+      <div class="carer-dropdown-arrow">&#x25BC;</div>
+    </div>
+    <div class="carer-dropdown" id="carer-dropdown"></div>
+  </div>
+  <div class="status-cards" id="status-cards">
+    <div class="status-card" id="sc-last-call">
+      <div class="sc-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg></div>
+      <div class="sc-label">Last call</div>
+      <div class="sc-value" id="sc-last-call-val">—</div>
+    </div>
+    <div class="status-card" id="sc-next-med" style="display:none">
+      <div class="sc-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="7" rx="3.5"/><path d="M12 11v7"/><path d="M7.5 7.5L12 3l4.5 4.5"/></svg></div>
+      <div class="sc-label">Next med</div>
+      <div class="sc-value" id="sc-next-med-val">—</div>
+    </div>
+    <div class="status-card" id="sc-vitals" style="display:none">
+      <div class="sc-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg></div>
+      <div class="sc-label" data-t="Vitals">Vitals</div>
+      <div class="sc-value" id="sc-vitals-val">—</div>
+    </div>
+  </div>
+  <div style="width:100%;display:flex;justify-content:center;padding:0 20px">
+    <div class="patient-zone-pill" id="patient-zone-pill" style="display:none"></div>
+  </div>
+
+  <!-- Offline fallback: call/text via cellular -->
+  <div class="offline-fallback" id="offline-fallback">
+    <div class="offline-fallback-title">No internet — use phone instead</div>
+    <div class="offline-fallback-btns" id="offline-fallback-btns"></div>
+  </div>
+
+  <div class="patient-main">
+    <div class="patient-no-carer" id="patient-no-carer" style="display:none">
+      <div style="font-size:1.5rem;margin-bottom:8px"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#0D9488" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></div>
+      <div style="font-size:1.1rem;font-weight:700;color:#1A202C" data-t="Not connected to a carer yet">Not connected to a carer yet</div>
+      <div style="font-size:0.88rem;color:#718096;margin-top:4px" data-t="Share your code to connect:">Share your code to connect:</div>
+      <div class="pnc-code" style="font-size:1.8rem;font-weight:700;letter-spacing:6px;color:#0D9488;margin:8px 0"></div>
+      <button onclick="showScreen('s-settings')" style="background:#0D9488;color:#fff;border:none;border-radius:14px;padding:14px 28px;font-weight:700;font-family:inherit;cursor:pointer;font-size:0.95rem" data-t="Go to Settings to connect">Go to Settings to connect</button>
+    </div>
+
+    <!-- "What do you need?" trigger pill -->
+    <button class="needs-trigger" id="needs-trigger" onclick="openNeedsSheet()" data-t="What do you need?">
+      <span class="needs-trigger-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></span> What do you need?
+    </button>
+    <!-- Selected needs indicator (shows after selection) -->
+    <div class="needs-selected" id="needs-selected" style="display:none"></div>
+
+    <!-- Big call button with emergency overlay -->
+    <div class="call-ring-wrap">
+      <div class="call-ring cr1"></div>
+      <div class="call-ring cr2"></div>
+      <div class="call-ring cr3"></div>
+      <button class="main-call-btn offline" id="main-call-btn" onclick="patientCallMain()" role="button" aria-label="Call carer for help">
+        <div class="mcb-heart-svg"><svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg></div>
+        <div class="mcb-icon" id="mcb-icon" style="display:none">SOS</div>
+        <div class="mcb-label" id="mcb-label">Call Carer</div>
+        <div class="mcb-sublabel">Tap for help</div>
+      </button>
+      <!-- Emergency button: anchored to bottom-right of call ring -->
+      <button class="emergency-btn" id="emergency-btn" role="button" aria-label="Emergency SOS - hold for 3 seconds"
+        ontouchstart="_emergencyDown(event)" ontouchend="_emergencyUp(event)" ontouchcancel="_emergencyUp(event)"
+        onmousedown="_emergencyDown(event)" onmouseup="_emergencyUp(event)" onmouseleave="_emergencyUp(event)">
+        <div class="emergency-charging-ring"></div>
+        <svg class="emergency-ring" viewBox="0 0 100 100">
+          <circle class="emergency-ring-bg" cx="50" cy="50" r="46" />
+          <circle class="emergency-ring-fill" id="emergency-ring-fill" cx="50" cy="50" r="46" />
+        </svg>
+        <div class="emergency-btn-inner">
+          <div class="emergency-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg></div>
+          <div class="emergency-label">SOS</div>
+          <div class="emergency-hint">Hold 3s</div>
+        </div>
+      </button>
+    </div>
+
+    <!-- Offline message near call button -->
+    <div class="offline-call-msg" id="offline-call-msg" data-t="📵 No internet connection — tap for phone fallback">📵 No internet connection — tap for phone fallback</div>
+
+    <!-- ═══ Needs Bottom Sheet ═══ -->
+    <div class="needs-sheet" id="needs-sheet">
+      <div class="needs-sheet-card">
+        <div class="needs-sheet-header">
+          <div class="needs-sheet-title" data-t="What do you need?">What do you need?</div>
+          <button class="sheet-close" onclick="closeNeedsSheet()">✕</button>
+        </div>
+        <div class="needs-sheet-list">
+          <button class="need-row" data-type="water"      onclick="selectNeed(this)" id="need-water">     <span class="need-row-icon">💧</span><span class="need-row-label" data-t="Water">Water</span></button>
+          <button class="need-row" data-type="medication" onclick="selectNeed(this)" id="need-medication"><span class="need-row-icon">💊</span><span class="need-row-label" data-t="Medication">Medication</span></button>
+          <button class="need-row" data-type="food"       onclick="selectNeed(this)" id="need-food">     <span class="need-row-icon">🍽️</span><span class="need-row-label" data-t="Food">Food</span></button>
+          <button class="need-row" data-type="toilet"     onclick="selectNeed(this)" id="need-toilet">   <span class="need-row-icon">🚽</span><span class="need-row-label" data-t="Toilet">Toilet</span></button>
+          <button class="need-row" data-type="pain"       onclick="selectNeed(this)" id="need-pain">     <span class="need-row-icon">😣</span><span class="need-row-label" data-t="Pain">Pain</span></button>
+          <button class="need-row" data-type="custom"     onclick="selectNeed(this)" id="need-custom">   <span class="need-row-icon">✏️</span><span class="need-row-label" data-t="Message">Message</span></button>
+          <button class="need-row voice-note-btn" id="voice-note-btn"
+            ontouchstart="_voiceNoteDown(event)" ontouchend="_voiceNoteUp(event)" ontouchcancel="_voiceNoteUp(event)"
+            onmousedown="_voiceNoteDown(event)" onmouseup="_voiceNoteUp(event)" onmouseleave="_voiceNoteUp(event)">
+            <span class="need-row-icon" id="vn-icon">🎙️</span><span class="need-row-label" id="vn-label" data-t="Voice Note">Voice Note</span>
+          </button>
+          <div class="need-row vn-preview-btn" id="vn-recorded" onclick="playVoiceNote()" style="display:none">
+            <button class="vn-close-x" onclick="event.stopPropagation();clearVoiceNote()">✕</button>
+            <span class="need-row-icon">▶</span><span class="need-row-label" id="vn-recorded-text"></span>
+          </div>
+        </div>
+        <!-- Custom message input (shows when Message selected) -->
+        <div class="custom-input-row" id="custom-input-row">
+          <input class="custom-txt" id="custom-msg" type="text" placeholder="Type your message…" maxlength="120">
+          <button class="dictate-btn" id="dictate-btn" onclick="toggleDictation()" title="Dictate">🎤</button>
+        </div>
+        <!-- Call button inside the sheet -->
+        <button class="needs-call-btn" onclick="patientCallMain();closeNeedsSheet()" data-t="Call for Help">Call for Help</button>
+      </div>
+    </div>
+
+    <!-- Bedside mode button (patients only) -->
+    <button class="night-mode-trigger" onclick="enterNightMode()" data-t="Night Mode">
+      <div class="nmt-inner">
+        <div class="icon-circle nmt-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg></div>
+        <div class="nmt-text">
+          <div class="nmt-title" data-t="Night Mode">Night Mode</div>
+          <div class="nmt-sub" data-t="Big clock &amp; easy call">Big clock &amp; easy call</div>
+        </div>
+        <svg class="nmt-arrow" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+      </div>
+    </button>
+
+    <!-- Fall detection + Voice activation (hidden, kept for JS compat) -->
+    <div class="toggles-row">
+      <div class="toggle-item">
+        <button class="fall-toggle" id="fall-toggle" onclick="toggleFallMonitoring()"><div class="fall-toggle-knob"></div></button>
+        <span class="fall-toggle-label" data-t="Fall Detection">Fall Detection</span>
+        <button class="fall-sensitivity-btn" onclick="cycleFallSensitivity()" title="Sensitivity"><span id="fall-sensitivity-label">medium</span></button>
+      </div>
+      <div class="toggle-item">
+        <button class="fall-toggle" id="voice-toggle" onclick="toggleVoiceActivation()"><div class="fall-toggle-knob"></div></button>
+        <span class="fall-toggle-label">Voice</span>
+        <button class="fall-sensitivity-btn" onclick="cycleVoiceDuration()" title="Duration"><span id="voice-dur-label">20s</span></button>
+      </div>
+    </div>
+    <div class="fall-monitor-indicator" id="fall-indicator"><div class="fall-pulse"></div> <span data-t="Monitoring for falls">Monitoring for falls</span></div>
+    <div class="fall-monitor-indicator" id="voice-indicator"><div class="fall-pulse"></div> Say "Help", "Water", "Pain"…</div>
+
+  </div>
+
+  <!-- Fall/Emergency alert -->
+  <div class="fall-alert" id="fall-alert" role="alertdialog" aria-label="Fall detected emergency alert">
+    <div class="fall-alert-icon">⚠️</div>
+    <div class="fall-alert-title" id="fall-alert-title">Fall Detected</div>
+    <div class="fall-alert-sub">Calling your carer in</div>
+    <div class="fall-alert-countdown" id="fall-countdown">15</div>
+    <button class="fall-alert-cancel" onclick="cancelFallAlert()">I'm OK — Cancel</button>
+  </div>
+
+  <!-- Acknowledged overlay (compact modal) -->
+  <div class="ack-overlay" id="ack-overlay">
+    <div class="ack-big-icon">✅</div>
+    <div class="ack-title" data-t="Help is on the way">Help is on the way</div>
+    <div class="ack-who" id="ack-who">Your carer is coming</div>
+    <div class="ack-type" id="ack-type"></div>
+    <button class="ack-dismiss-btn" onclick="dismissAckOverlay()">OK</button>
+  </div>
+
+  <nav class="bottom-nav" id="patient-bottom-nav">
+    <button class="bottom-nav-btn" onclick="showScreen('s-patient')" data-tab="home">
+      <span class="bottom-nav-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg></span>
+      <span class="bottom-nav-label" data-t="Call">Call</span>
+    </button>
+    <button class="bottom-nav-btn" onclick="showScreen('s-log')" data-tab="log">
+      <span class="bottom-nav-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></span>
+      <span class="bottom-nav-label" data-t="History">History</span>
+    </button>
+    <button class="bottom-nav-btn" onclick="openSettingsSheet('sh-meds')" data-tab="meds">
+      <span class="bottom-nav-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.5 20.5L3.5 13.5a5 5 0 0 1 7-7l7 7a5 5 0 0 1-7 7z"/><line x1="8.5" y1="8.5" x2="15.5" y2="15.5"/></svg></span>
+      <span class="bottom-nav-label" data-t="Meds">Meds</span>
+    </button>
+    <button class="bottom-nav-btn" onclick="showScreen('s-calendar')" data-tab="calendar">
+      <span class="bottom-nav-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></span>
+      <span class="bottom-nav-label" data-t="Calendar">Calendar</span>
+    </button>
+    <button class="bottom-nav-btn" onclick="showScreen('s-settings')" data-tab="settings">
+      <span class="bottom-nav-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></span>
+      <span class="bottom-nav-label" data-t="Settings">Settings</span>
+    </button>
+  </nav>
+</div>
+
+<!-- ══ CHECK-IN PROMPT (patient) ══ -->
+<div class="checkin-prompt" id="checkin-prompt" role="alertdialog" aria-label="Scheduled check-in">
+  <div class="checkin-prompt-card">
+    <div class="checkin-icon">👋</div>
+    <div class="checkin-title" data-t="Are you OK?">Are you OK?</div>
+    <div class="checkin-sub" data-t="Routine check-in">Routine check-in</div>
+    <div class="checkin-countdown" id="checkin-countdown"></div>
+    <div style="font-size:0.78rem;color:#888;margin-bottom:4px">Tap "I'm OK" or your carer will be notified</div>
+    <div class="checkin-btns">
+      <button class="checkin-ok-btn" onclick="respondCheckin('ok')" data-t="I'm OK" style="padding:16px;font-size:1.1rem">I'm OK</button>
+      <button class="checkin-help-btn" onclick="respondCheckin('help')" data-t="Need Help" style="padding:16px;font-size:1.1rem">Need Help</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ MEDICATION REMINDER PROMPT (patient) ══ -->
+<div class="checkin-prompt" id="med-prompt">
+  <div class="checkin-prompt-card">
+    <div class="med-prompt-photo" id="med-prompt-photo" style="display:none"></div>
+    <div class="checkin-icon" id="med-prompt-icon">💊</div>
+    <div class="checkin-title" id="med-prompt-title" data-t="Medication Time">Medication Time</div>
+    <div class="checkin-sub" id="med-prompt-name">Take your medication</div>
+    <div class="checkin-sub" id="med-prompt-instructions" style="display:none;font-size:0.85rem;opacity:0.85;margin-top:4px"></div>
+    <div class="checkin-countdown" id="med-countdown"></div>
+    <div class="checkin-btns">
+      <button class="checkin-ok-btn" onclick="respondMed('taken')" data-t="Taken ✓">Taken ✓</button>
+      <button class="checkin-help-btn" onclick="respondMed('snoozed')" data-t="Snooze 15 min">Snooze 15 min</button>
+      <button class="checkin-help-btn" onclick="respondMed('skipped')" data-t="Skip">Skip</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ CARER SCREEN ══ -->
+<div class="screen" id="s-carer">
+  <div class="topbar-brand">
+    <div class="topbar-brand-left">
+      <div class="topbar-heart-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6l3 1 4-3 4 3 3-1"/><path d="M3 10l3 1 4-3 4 3 3-1"/><path d="M3 14l3 1 4-3 4 3 3-1"/></svg></div>
+      <div class="topbar-brand-text"><span class="topbar-brand-name">CareCall</span><span class="topbar-brand-role">Carer</span></div>
+    </div>
+    <div class="carer-header-actions">
+      <button class="icon-btn" onclick="openCarerMedsManager()" title="Patient medications"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="7" rx="3.5"/><path d="M12 11v7"/><path d="M7.5 7.5L12 3l4.5 4.5"/></svg></button>
+      <button class="icon-btn" onclick="showScreen('s-log')" title="Call log"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg></button>
+      <button class="icon-btn" onclick="showScreen('s-calendar')" title="Calendar"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></button>
+      <button class="icon-btn" onclick="showScreen('s-settings')" title="Settings"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>
+    </div>
+  </div>
+  <div class="topbar-separator"></div>
+  <div class="patient-header carer-header-bar">
+    <div style="display:flex;align-items:center;gap:12px">
+      <button class="patient-avatar-btn" id="c-avatar-btn" onclick="openProfileModal(S.uid)">👤</button>
+      <div>
+        <div class="patient-greeting carer-greeting" id="c-greeting" data-t="Good morning,">Good morning,</div>
+        <div class="patient-name carer-name-heading" id="c-name">····</div>
+      </div>
+    </div>
+  </div>
+  <!-- Hidden room badge for existing JS -->
+  <div style="display:none">
+    <div class="room-badge" id="c-room-badge" onclick="toggleRoomDropdown('c')">
+      <span id="c-room-label">····</span>
+      <div class="room-badge-dropdown" id="c-room-dropdown"></div>
+    </div>
+  </div>
+
+  <!-- My Patients list -->
+  <div class="my-patients" id="my-patients">
+    <div class="my-patients-title">My Patients</div>
+    <div class="my-patients-list" id="my-patients-list">
+      <div class="no-patients-msg">No patients connected yet</div>
+    </div>
+  </div>
+
+  <div class="carer-main">
+    <!-- Availability status -->
+    <div class="availability-bar" id="availability-bar">
+      <button class="avail-btn available selected" data-status="available" onclick="setAvailability('available')">
+        <span class="avail-dot"></span> <span data-t="Available">Available</span>
+      </button>
+      <button class="avail-btn busy" data-status="busy" onclick="setAvailability('busy')">
+        <span class="avail-dot"></span> <span data-t="Busy">Busy</span>
+      </button>
+      <button class="avail-btn off-duty" data-status="off-duty" onclick="setAvailability('off-duty')">
+        <span class="avail-dot"></span> <span data-t="Off Duty">Off Duty</span>
+      </button>
+    </div>
+
+    <!-- Members online -->
+    <div class="members-bar" id="members-bar">
+      <span class="members-label" data-t="Online:">Online:</span>
+      <span class="no-members" id="no-members-txt" data-t="No one connected yet">No one connected yet</span>
+    </div>
+
+    <!-- Standby orb (hidden when calls are active) -->
+    <div class="orb-area" id="orb-area">
+      <div class="orb-wrap">
+        <div class="orb-ring"></div><div class="orb-ring orb-ring-2"></div>
+        <div class="orb" id="carer-orb">
+          <div class="orb-icon" id="orb-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg></div>
+          <div class="orb-lbl" id="orb-lbl">Standby</div>
+        </div>
+      </div>
+      <div class="orb-status" id="orb-status">Waiting for connection…</div>
+      <div class="orb-info" id="orb-info"></div>
+    </div>
+
+    <!-- Active calls -->
+    <div class="calls-section" id="calls-section" style="display:none">
+      <div class="calls-heading" data-t="Active Calls">Active Calls</div>
+      <div id="calls-list"></div>
+    </div>
+
+    <!-- Quick write handoff note -->
+    <button class="handoff-write-btn" onclick="showHandoffPrompt()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:4px"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>Write Shift Note</button>
+  </div>
+</div>
+
+<!-- Full-screen incoming alert — OUTSIDE any screen div so it renders
+     even when the carer is on Settings, Log, or any other screen.
+     position:fixed + z-index:100 covers everything. -->
+<div class="incoming-alert" id="incoming-alert" role="alertdialog" aria-label="Incoming patient call">
+  <div class="ia-flash"></div>
+  <div class="ia-bell"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg></div>
+  <div class="ia-who" id="ia-who">Patient Calling!</div>
+  <div class="ia-type-badge" id="ia-type-badge">🆘 Help needed</div>
+  <div class="ia-message" id="ia-message" style="display:none"></div>
+  <button class="ia-vn-btn" id="ia-vn-btn" onclick="playAlertVoiceNote()" style="display:none">🎙️ Play voice note</button>
+  <button class="ia-ack-btn" onclick="acknowledgeFromAlert()" data-t="✓ I'm on my way">✓ I'm on my way</button>
+  <button class="ia-voice-btn" id="ia-voice-btn" onclick="startVoiceCall()" style="display:none">📞 &nbsp;Voice Call</button>
+</div>
+
+<!-- ══ LOG SCREEN ══ -->
+<div class="screen" id="s-log">
+  <div class="topbar">
+    <div class="topbar-logo">Call <em>Log</em></div>
+    <div class="topbar-right">
+      <button class="icon-btn temp-carer-toggle" id="temp-carer-btn" onclick="toggleTempCarer()" title="Step in as Carer" style="display:none;font-size:0.75rem;padding:6px 10px;border-radius:10px;background:rgba(59,130,196,0.1);color:var(--carer-primary);white-space:nowrap" data-t="Step in as Carer"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:3px"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>Step in as Carer</button>
+      <button class="icon-btn" onclick="refreshLog(true)" title="Refresh"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg></button>
+      <button class="icon-btn" onclick="exportLogCSV()" title="Download CSV"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></button>
+      <button class="icon-btn" onclick="showScreen('s-calendar')" title="Calendar"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></button>
+      <button class="icon-btn" onclick="showScreen('s-settings')" title="Settings"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>
+      <button class="btn-link" onclick="goBack()" style="font-size:0.82rem;color:#6B7280;padding:8px 10px" data-t="← Back">← Back</button>
+    </div>
+  </div>
+  <!-- Temp carer active banner -->
+  <div class="temp-carer-banner" id="temp-carer-banner" style="display:none;background:rgba(14,165,233,0.15);color:#0EA5E9;text-align:center;padding:8px 12px;font-size:0.82rem;font-weight:600" data-t="You are acting as a temporary carer">You are acting as a temporary carer</div>
+  <!-- Wellness Score -->
+  <div class="log-dashboard" id="log-dashboard" style="display:none">
+    <div class="wellness-score-card" id="wellness-card" style="display:none">
+      <div class="ws-score-ring" id="ws-ring">
+        <svg viewBox="0 0 100 100">
+          <circle cx="50" cy="50" r="42" class="ws-ring-bg"/>
+          <circle cx="50" cy="50" r="42" class="ws-ring-fill" id="ws-ring-fill"/>
+        </svg>
+        <div class="ws-score-num" id="ws-score">—</div>
+      </div>
+      <div class="ws-details">
+        <div class="ws-title">Wellness Score</div>
+        <div class="ws-subtitle" id="ws-label">Calculating…</div>
+        <div class="ws-factors" id="ws-factors"></div>
+      </div>
+    </div>
+    <div class="dash-row">
+      <div class="dash-card">
+        <div class="dash-num" id="dash-total">0</div>
+        <div class="dash-label" data-t="Total Calls">Total Calls</div>
+      </div>
+      <div class="dash-card">
+        <div class="dash-num" id="dash-responded">0</div>
+        <div class="dash-label" data-t="Responded">Responded</div>
+      </div>
+      <div class="dash-card">
+        <div class="dash-num" id="dash-avg-response">—</div>
+        <div class="dash-label" data-t="Avg Response">Avg Response</div>
+      </div>
+    </div>
+    <div class="dash-row">
+      <div class="dash-card">
+        <div class="dash-num" id="dash-fastest">—</div>
+        <div class="dash-label" data-t="Fastest">Fastest</div>
+      </div>
+      <div class="dash-card">
+        <div class="dash-num" id="dash-slowest">—</div>
+        <div class="dash-label" data-t="Slowest">Slowest</div>
+      </div>
+      <div class="dash-card">
+        <div class="dash-num" id="dash-today">0</div>
+        <div class="dash-label" data-t="Today">Today</div>
+      </div>
+    </div>
+    <div class="dash-row">
+      <div class="dash-card wide">
+        <div class="dash-label" style="margin-bottom:6px" data-t="Most Common Needs">Most Common Needs</div>
+        <div class="dash-needs" id="dash-needs"></div>
+      </div>
+    </div>
+    <!-- Medication charts (30-day trendline + most-missed) -->
+    <div class="dash-row" id="med-charts-row" style="display:none">
+      <div class="dash-card wide">
+        <div class="dash-label" style="margin-bottom:8px" data-t="Medication adherence (30 days)">Medication adherence (30 days)</div>
+        <svg id="adherence-trend" viewBox="0 0 300 80" preserveAspectRatio="none" style="width:100%;height:80px;display:block"></svg>
+        <div id="adherence-summary" style="font-size:0.75rem;color:#6B7280;margin-top:6px"></div>
+      </div>
+    </div>
+    <div class="dash-row" id="med-missed-row" style="display:none">
+      <div class="dash-card wide">
+        <div class="dash-label" style="margin-bottom:8px" data-t="Most-missed medications">Most-missed medications</div>
+        <div id="most-missed-list"></div>
+      </div>
+    </div>
+    <!-- AI Insights -->
+    <div class="dash-insights" id="dash-insights"></div>
+  </div>
+
+  <!-- Skeleton loading placeholder -->
+  <div class="log-skeleton" id="log-skeleton" style="display:none;padding:12px 16px">
+    <div class="skeleton-row"><div class="skeleton-card"></div><div class="skeleton-card"></div><div class="skeleton-card"></div></div>
+    <div class="skeleton-row" style="margin-top:10px"><div class="skeleton-card"></div><div class="skeleton-card"></div><div class="skeleton-card"></div></div>
+    <div class="skeleton-row" style="margin-top:10px"><div class="skeleton-card wide"></div></div>
+  </div>
+
+  <!-- Pull-to-refresh indicator -->
+  <div class="ptr-indicator" id="ptr-indicator"><span class="ptr-spinner"></span> Refreshing…</div>
+
+  <div class="log-filters" id="log-filters">
+    <button class="log-filter-btn selected" data-filter="all" onclick="setLogFilter('all',this)">All</button>
+  </div>
+  <div class="log-content" id="log-content">
+    <div class="log-empty">📞 No calls yet<br><span style="font-size:0.8rem;opacity:0.6">Your call history will appear here</span></div>
+  </div>
+</div>
+
+<!-- ══ SETTINGS SCREEN ══ -->
+<div class="screen" id="s-settings">
+  <div class="topbar-brand">
+    <div class="topbar-brand-left">
+      <button class="settings-back-arrow" onclick="goBack()"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg></button>
+      <div class="settings-header-title" data-t="Settings">Settings</div>
+    </div>
+    <button class="settings-back-btn" onclick="goBack()" data-t="Done">Done</button>
+  </div>
+  <div class="topbar-separator"></div>
+  <div class="settings-content">
+    <div class="settings-grid">
+      <button class="settings-card" onclick="openSettingsSheet('sh-profile')">
+        <div class="settings-card-icon icon-circle teal"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></div>
+        <div class="settings-card-label" data-t="Profile">Profile</div>
+      </button>
+      <button class="settings-card" onclick="openSettingsSheet('sh-connections')">
+        <div class="settings-card-icon icon-circle teal"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></div>
+        <div class="settings-card-label" data-t="Connections">Connections</div>
+      </button>
+      <button class="settings-card" onclick="openSettingsSheet('sh-notifications')">
+        <div class="settings-card-icon icon-circle teal"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg></div>
+        <div class="settings-card-label" data-t="Alerts">Alerts</div>
+      </button>
+      <button class="settings-card" id="sc-meds" onclick="openSettingsSheet('sh-meds')" style="display:none">
+        <div class="settings-card-icon icon-circle teal"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="7" rx="3.5"/><path d="M12 11v7"/><path d="M7.5 7.5L12 3l4.5 4.5"/></svg></div>
+        <div class="settings-card-label" data-t="Medications">Medications</div>
+      </button>
+      <button class="settings-card" id="sc-safety" onclick="openSettingsSheet('sh-safety')">
+        <div class="settings-card-icon icon-circle teal"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></div>
+        <div class="settings-card-label" data-t="Safety">Safety</div>
+      </button>
+      <button class="settings-card" id="sc-documents" onclick="openDocumentsSheet()">
+        <div class="settings-card-icon icon-circle teal"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg></div>
+        <div class="settings-card-label" data-t="Documents">Documents</div>
+      </button>
+      <button class="settings-card" id="sc-health" onclick="openHealthSheet()" style="display:none">
+        <div class="settings-card-icon icon-circle teal"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg></div>
+        <div class="settings-card-label" data-t="Health">Health</div>
+      </button>
+      <button class="settings-card" id="sc-checkin" onclick="openSettingsSheet('sh-checkin')" style="display:none">
+        <div class="settings-card-icon icon-circle teal"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
+        <div class="settings-card-label" data-t="Check-ins">Check-ins</div>
+      </button>
+      <button class="settings-card" onclick="openSettingsSheet('sh-accessibility')">
+        <div class="settings-card-icon icon-circle teal"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="4" r="2"/><path d="M12 6v6"/><path d="M8 10l4 2 4-2"/><path d="M9 18l3-6 3 6"/></svg></div>
+        <div class="settings-card-label" data-t="Accessibility">Accessibility</div>
+      </button>
+      <button class="settings-card" onclick="openSettingsSheet('sh-system')">
+        <div class="settings-card-icon icon-circle teal"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></div>
+        <div class="settings-card-label" data-t="System">System</div>
+      </button>
+    </div>
+
+    <!-- Profile Sheet -->
+    <div class="settings-sheet" id="sh-profile">
+      <div class="sheet-header"><div class="sheet-title" data-t="Profile">Profile</div><button class="sheet-close" onclick="closeSettingsSheet('sh-profile')">✕</button></div>
+      <div class="sheet-body">
+        <div class="settings-section">
+          <div class="settings-row"><div style="flex:1"><div class="settings-row-label" data-t="Name">Name</div></div><div style="display:flex;gap:6px;align-items:center"><span class="settings-row-value" id="s-name-display"></span><button class="btn-link" onclick="editName()" data-t="Edit">Edit</button></div></div>
+          <div class="settings-row"><div style="flex:1"><div class="settings-row-label" data-t="Avatar">Avatar</div></div><div style="display:flex;gap:6px;align-items:center" id="s-avatar-row"><button class="avatar-pick-btn" id="s-avatar-btn" onclick="_toggleSettingsAvatarPicker()"></button></div></div>
+          <div class="avatar-picker" id="s-avatar-picker"></div>
+          <div class="settings-row" data-filter="photo profile picture camera upload"><div style="flex:1"><div class="settings-row-label" data-t="Profile Photo">Profile Photo</div><div class="settings-row-value" style="font-size:0.72rem;opacity:0.6" data-t="Upload a photo from camera or gallery">Camera or gallery</div></div><div style="display:flex;gap:6px;align-items:center"><div class="profile-photo-thumb" id="s-photo-thumb"></div><button class="btn-link" onclick="_pickProfilePhoto()" data-t="Upload">Upload</button></div></div>
+          <div class="settings-row"><div style="flex:1"><div class="settings-row-label" data-t="Phone Number">Phone Number</div><div class="settings-row-value" style="font-size:0.72rem;opacity:0.6" data-t="Used as offline fallback">Offline fallback</div></div><div style="display:flex;gap:6px;align-items:center"><span class="settings-row-value" id="s-phone-display" data-t="Not set">Not set</span><button class="btn-link" onclick="editPhone()" data-t="Edit">Edit</button></div></div>
+          <div class="settings-row" id="s-email-row" style="display:none"><div><div class="settings-row-label" data-t="Account">Account</div><div class="settings-row-value" id="s-email-display" style="font-size:0.78rem;opacity:0.7"></div></div></div>
+        </div>
+        <div class="settings-section">
+          <div class="settings-section-title" data-t="Security">Security</div>
+          <div class="settings-row"><div><div class="settings-row-label" data-t="Settings PIN Lock">PIN Lock</div><div class="settings-row-value" style="font-size:0.72rem;opacity:0.6">Protect settings</div></div><button class="btn-link" id="s-pin-btn" onclick="_getPinHash() ? _removePin() : _setupPin()">Off</button></div>
+          <div class="settings-row"><div class="settings-row-label" data-t="Sign Out">Sign Out</div><button class="btn-link" onclick="signOut()" style="color:var(--danger)" data-t="Sign Out">Sign Out</button></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Connections Sheet -->
+    <div class="settings-sheet" id="sh-connections">
+      <div class="sheet-header"><div class="sheet-title" data-t="Connections">Connections</div><button class="sheet-close" onclick="closeSettingsSheet('sh-connections')">✕</button></div>
+      <div class="sheet-body">
+        <div class="settings-section">
+          <div class="settings-section-title" data-t="My Code">My Code</div>
+          <div class="settings-row"><div style="flex:1"><div class="code-reveal-row"><div class="settings-row-label" id="s-personal-code" style="font-size:1.2rem;letter-spacing:4px;color:var(--carer-primary);font-weight:700">••••••</div><button class="code-reveal-btn" id="s-code-reveal-btn" onclick="_toggleCodeReveal()" title="Show/Hide">👁️</button><button class="code-reveal-btn" onclick="_copyPersonalCode()" title="Copy">📋</button></div><div class="settings-row-value" data-t="Share this code to connect">Share to connect</div></div><button class="btn-link" onclick="showQrCode()" data-t="QR Code">QR</button></div>
+        </div>
+        <div class="settings-section">
+          <div class="settings-section-title" id="s-connections-title">My Connections</div>
+          <div class="rooms-list" id="rooms-list"></div>
+          <div class="add-room-row"><input class="add-room-input" id="add-room-input" type="text" placeholder="CODE" maxlength="8" autocorrect="off" autocapitalize="characters"><button class="add-room-btn" title="Scan QR" onclick="openQrScanner('settings')" style="padding:12px 14px">📷</button><button class="add-room-btn" onclick="addConnectionFromSettings()">+ Add</button></div>
+          <div class="input-err" id="add-room-err"></div>
+        </div>
+        <div class="settings-section" id="s-temp-carer-section" style="display:none">
+          <div class="settings-section-title" data-t="Temporary Carer">Temporary Carer</div>
+          <div class="settings-row"><div style="flex:1"><div class="settings-row-label" data-t="Step in as Carer">Step in as Carer</div><div class="settings-row-value" style="font-size:0.72rem;opacity:0.6">Act as a carer temporarily</div></div><button class="btn-link" id="s-temp-carer-btn" onclick="toggleTempCarer()" data-t="Off">Off</button></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Alerts Sheet -->
+    <div class="settings-sheet" id="sh-notifications">
+      <div class="sheet-header"><div class="sheet-title" data-t="Alerts">Alerts</div><button class="sheet-close" onclick="closeSettingsSheet('sh-notifications')">✕</button></div>
+      <div class="sheet-body">
+        <div class="settings-section">
+          <div class="settings-row"><div><div class="settings-row-label" data-t="Push Notifications">Push Notifications</div><div class="settings-row-value" id="s-notif-status">Checking…</div></div><button class="btn-link" id="test-notif-btn" onclick="testNotification()" data-t="Test">Test</button></div>
+        </div>
+        <div class="settings-section" id="s-dms-section" style="display:none">
+          <div class="settings-section-title" data-t="Inactivity Alert">Inactivity Alert</div>
+          <div class="settings-row"><div class="settings-row-label" data-t="Inactivity threshold">Threshold</div><button class="btn-link" id="dms-threshold-btn" onclick="cycleDmsThreshold()">Off</button></div>
+        </div>
+        <div class="settings-section" id="s-remote-patient-section" style="display:none">
+          <div class="settings-section-title" data-t="Remote Patient Settings">Remote Settings</div>
+          <div class="settings-row"><div><div class="settings-row-label" data-t="Patient Settings">Patient Settings</div></div><button class="btn-link" onclick="openCarerPatientSettings()" data-t="Configure">Configure</button></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Medications Sheet -->
+    <div class="settings-sheet" id="sh-meds">
+      <div class="sheet-header"><div class="sheet-title" data-t="Medications">Medications</div><button class="sheet-close" onclick="closeSettingsSheet('sh-meds')">✕</button></div>
+      <div class="sheet-body">
+        <div class="settings-section" id="s-meds-section" style="display:none">
+          <div class="settings-row"><div><div class="settings-row-label" data-t="Spoken reminder">Spoken reminder</div></div><button class="btn-link" id="tts-toggle-btn" onclick="toggleTts()">On</button></div>
+          <div id="meds-list"></div>
+          <button class="add-room-btn" style="width:100%;margin-top:8px" onclick="openMedEditor()" data-t="+ Add medication">+ Add medication</button>
+          <button class="add-room-btn" style="width:100%;margin-top:8px;background:rgba(59,130,196,0.1);color:var(--carer-primary)" onclick="exportAdherencePdf(S.uid, S.name, _medications)" data-t="📄 Adherence report (PDF)">📄 Adherence report</button>
+          <div class="input-err" id="med-err"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Check-ins Sheet -->
+    <div class="settings-sheet" id="sh-checkin">
+      <div class="sheet-header"><div class="sheet-title" data-t="Check-ins">Check-ins</div><button class="sheet-close" onclick="closeSettingsSheet('sh-checkin')">✕</button></div>
+      <div class="sheet-body">
+        <div class="settings-section" id="s-checkin-section" style="display:none">
+          <div class="settings-row"><div class="settings-row-label" data-t="Check-in interval">Interval</div><button class="btn-link" id="checkin-interval-btn" onclick="cycleCheckinInterval()">Off</button></div>
+          <div class="settings-row"><div class="settings-row-label" data-t="Active hours">Active hours</div><div style="display:flex;gap:4px;align-items:center"><button class="btn-link" id="checkin-start-btn" onclick="cycleCheckinStart()">8 AM</button><span style="color:#718096;font-size:0.8rem">to</span><button class="btn-link" id="checkin-end-btn" onclick="cycleCheckinEnd()">10 PM</button></div></div>
+          <div class="settings-row"><div class="settings-row-label" data-t="Response window">Response window</div><button class="btn-link" id="checkin-timeout-btn" onclick="cycleCheckinTimeout()">5 min</button></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Safety Sheet -->
+    <div class="settings-sheet" id="sh-safety">
+      <div class="sheet-header"><div class="sheet-title" data-t="Safety">Safety</div><button class="sheet-close" onclick="closeSettingsSheet('sh-safety')">✕</button></div>
+      <div class="sheet-body">
+        <div class="settings-section">
+          <div class="settings-row"><div><div class="settings-row-label" data-t="Share location with calls">Share location</div><div class="settings-row-value" style="font-size:0.72rem;opacity:0.6">During emergencies</div></div><button class="btn-link" id="s-location-btn" onclick="toggleLocationSharing()">Off</button></div>
+          <div class="settings-row"><div><div class="settings-row-label" data-t="Safe Zone">Safe Zone</div><div class="settings-row-value" id="s-geofence-summary" style="font-size:0.72rem;opacity:0.6">Alert if patient leaves area</div></div><button class="btn-link" id="s-geofence-btn" onclick="openSafeZoneEditor()" data-t="Set">Set</button></div>
+          <div class="settings-row"><div class="settings-row-label" data-t="Emergency Info Card">Emergency Info Card</div><button class="btn-link" onclick="showEmergencyCard()" data-t="View / Edit">View / Edit</button></div>
+          <div class="settings-row"><div><div class="settings-row-label" data-t="Emergency Number">Emergency Number</div><div class="settings-row-value" style="font-size:0.72rem;opacity:0.6" data-t="Called as last resort">Called as last resort</div></div><button class="btn-link" id="s-emerg-number" onclick="editEmergencyNumber()">911</button></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Documents Sheet -->
+    <div class="settings-sheet" id="sh-documents">
+      <div class="sheet-header"><div class="sheet-title" data-t="Documents">Documents</div><button class="sheet-close" onclick="closeSettingsSheet('sh-documents')">✕</button></div>
+      <div class="sheet-body">
+        <div class="doc-category-pills" id="doc-category-pills">
+          <button class="doc-pill selected" data-cat="all" onclick="filterDocuments('all',this)" data-t="All">All</button>
+          <button class="doc-pill" data-cat="insurance" onclick="filterDocuments('insurance',this)" data-t="Insurance">Insurance</button>
+          <button class="doc-pill" data-cat="medical" onclick="filterDocuments('medical',this)" data-t="Medical">Medical</button>
+          <button class="doc-pill" data-cat="legal" onclick="filterDocuments('legal',this)" data-t="Legal">Legal</button>
+          <button class="doc-pill" data-cat="prescription" onclick="filterDocuments('prescription',this)" data-t="Prescriptions">Prescriptions</button>
+          <button class="doc-pill" data-cat="other" onclick="filterDocuments('other',this)" data-t="Other">Other</button>
+        </div>
+        <div class="doc-list" id="doc-list">
+          <div class="doc-empty" data-t="No documents yet">No documents yet</div>
+        </div>
+        <button class="btn btn-primary doc-add-btn" onclick="openAddDocumentModal()" style="max-width:none" data-t="+ Add Document">+ Add Document</button>
+      </div>
+    </div>
+
+    <!-- Add Document Modal -->
+    <div class="settings-sheet" id="sh-doc-add">
+      <div class="sheet-header"><div class="sheet-title" data-t="Add Document">Add Document</div><button class="sheet-close" onclick="closeSettingsSheet('sh-doc-add')">✕</button></div>
+      <div class="sheet-body">
+        <div class="settings-section">
+          <div class="input-group">
+            <div class="input-label" data-t="Document Name">Document Name</div>
+            <input class="text-input" id="doc-name-input" type="text" placeholder="e.g. Insurance Card Front" maxlength="100">
+          </div>
+          <div class="input-group">
+            <div class="input-label" data-t="Category">Category</div>
+            <div class="doc-category-selector" id="doc-category-selector">
+              <button class="doc-cat-btn selected" data-cat="insurance" onclick="docSelectCategory(this)">🏥 <span data-t="Insurance">Insurance</span></button>
+              <button class="doc-cat-btn" data-cat="medical" onclick="docSelectCategory(this)">🩺 <span data-t="Medical">Medical</span></button>
+              <button class="doc-cat-btn" data-cat="legal" onclick="docSelectCategory(this)">⚖️ <span data-t="Legal">Legal</span></button>
+              <button class="doc-cat-btn" data-cat="prescription" onclick="docSelectCategory(this)">💊 <span data-t="Prescriptions">Prescriptions</span></button>
+              <button class="doc-cat-btn" data-cat="other" onclick="docSelectCategory(this)">📎 <span data-t="Other">Other</span></button>
+            </div>
+          </div>
+          <div class="input-group">
+            <div class="input-label" data-t="File">File</div>
+            <div class="doc-file-area" id="doc-file-area" onclick="document.getElementById('doc-file-input').click()">
+              <div class="doc-file-placeholder" id="doc-file-placeholder" data-t="Tap to select image or PDF">Tap to select image or PDF</div>
+              <div class="doc-file-preview" id="doc-file-preview" style="display:none"></div>
+            </div>
+            <input type="file" id="doc-file-input" accept="image/*,.pdf" style="display:none" onchange="handleDocFileSelect(this)">
+            <div class="doc-file-info" id="doc-file-info" style="display:none;font-size:0.72rem;color:#718096;margin-top:4px"></div>
+          </div>
+          <div class="input-group">
+            <div class="input-label"><span data-t="Notes">Notes</span> <span style="font-size:0.72rem;opacity:0.6" data-t="(optional)">(optional)</span></div>
+            <textarea class="text-input" id="doc-notes-input" rows="3" maxlength="500" placeholder="Additional notes..."></textarea>
+          </div>
+        </div>
+        <div class="input-err" id="doc-err" style="text-align:center"></div>
+        <button class="btn btn-primary" style="max-width:none" onclick="saveDocument()" data-t="Save">Save</button>
+      </div>
+    </div>
+
+    <!-- Document Viewer Overlay -->
+    <div class="doc-viewer-overlay" id="doc-viewer-overlay">
+      <div class="doc-viewer-header">
+        <button class="sheet-close" onclick="closeDocViewer()">✕</button>
+        <div class="doc-viewer-title" id="doc-viewer-title"></div>
+        <button class="doc-viewer-delete" id="doc-viewer-delete" onclick="deleteDocument()" style="display:none" data-t="Delete">Delete</button>
+      </div>
+      <div class="doc-viewer-body" id="doc-viewer-body"></div>
+      <div class="doc-viewer-meta" id="doc-viewer-meta"></div>
+    </div>
+
+    <!-- Health Tracking Sheet -->
+    <div class="settings-sheet" id="sh-health">
+      <div class="sheet-header"><div class="sheet-title" data-t="Health Log">Health Log</div><button class="sheet-close" onclick="closeSettingsSheet('sh-health')">✕</button></div>
+      <div class="sheet-body">
+        <!-- Quick-add measurement type buttons -->
+        <div class="health-types-row" id="health-types-row">
+          <button class="health-type-btn" data-type="bp" onclick="openHealthInput('bp')"><span class="health-type-icon">🩸</span><span class="health-type-label" data-t="BP">BP</span></button>
+          <button class="health-type-btn" data-type="hr" onclick="openHealthInput('hr')"><span class="health-type-icon">❤️</span><span class="health-type-label" data-t="HR">HR</span></button>
+          <button class="health-type-btn" data-type="sugar" onclick="openHealthInput('sugar')"><span class="health-type-icon">🍬</span><span class="health-type-label" data-t="Sugar">Sugar</span></button>
+          <button class="health-type-btn" data-type="temp" onclick="openHealthInput('temp')"><span class="health-type-icon">🌡️</span><span class="health-type-label" data-t="Temp">Temp</span></button>
+          <button class="health-type-btn" data-type="weight" onclick="openHealthInput('weight')"><span class="health-type-icon">⚖️</span><span class="health-type-label" data-t="Weight">Weight</span></button>
+          <button class="health-type-btn" data-type="o2" onclick="openHealthInput('o2')"><span class="health-type-icon">💨</span><span class="health-type-label" data-t="O2">O2</span></button>
+          <button class="health-type-btn" data-type="pain" onclick="openHealthInput('pain')"><span class="health-type-icon">😣</span><span class="health-type-label" data-t="Pain">Pain</span></button>
+          <button class="health-type-btn" data-type="mood" onclick="openHealthInput('mood')"><span class="health-type-icon">😊</span><span class="health-type-label" data-t="Mood">Mood</span></button>
+        </div>
+
+        <!-- Add measurement modal (overlay inside the sheet) -->
+        <div class="health-input-modal" id="health-input-modal" style="display:none">
+          <div class="health-input-card">
+            <div class="health-input-header">
+              <span class="health-input-type-icon" id="health-input-icon"></span>
+              <span class="health-input-type-name" id="health-input-name"></span>
+              <button class="sheet-close" onclick="closeHealthInput()" style="width:32px;height:32px;font-size:0.9rem">✕</button>
+            </div>
+            <div class="health-input-body" id="health-input-body">
+              <!-- Dynamically populated per type -->
+            </div>
+            <div class="input-group" style="margin-top:8px">
+              <div class="input-label"><span data-t="Notes">Notes</span> <span style="font-size:0.72rem;opacity:0.6" data-t="(optional)">(optional)</span></div>
+              <textarea class="text-input" id="health-notes-input" rows="2" maxlength="200" placeholder="Optional notes..."></textarea>
+            </div>
+            <div class="input-err" id="health-input-err" style="text-align:center"></div>
+            <button class="btn btn-primary" style="max-width:none;margin-top:8px" onclick="saveHealthEntry()" data-t="Save">Save</button>
+          </div>
+        </div>
+
+        <!-- Recent entries list -->
+        <div class="settings-section">
+          <div class="settings-section-title" data-t="Recent Entries">Recent Entries</div>
+          <div class="health-entries-list" id="health-entries-list">
+            <div class="health-empty" data-t="No health entries yet">No health entries yet</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Accessibility Sheet -->
+    <div class="settings-sheet" id="sh-accessibility">
+      <div class="sheet-header"><div class="sheet-title" data-t="Accessibility">Accessibility</div><button class="sheet-close" onclick="closeSettingsSheet('sh-accessibility')">✕</button></div>
+      <div class="sheet-body">
+        <div class="settings-section">
+          <div class="settings-row"><div><div class="settings-row-label" data-t="Large Text">Large Text</div><div class="settings-row-value" style="font-size:0.72rem;opacity:0.6">Increase text size</div></div><button class="btn-link" id="a11y-large-btn" onclick="toggleA11y('largeText')">Off</button></div>
+          <div class="settings-row"><div><div class="settings-row-label" data-t="High Contrast">High Contrast</div><div class="settings-row-value" style="font-size:0.72rem;opacity:0.6">Stronger colours</div></div><button class="btn-link" id="a11y-contrast-btn" onclick="toggleA11y('highContrast')">Off</button></div>
+        </div>
+        <div class="settings-section">
+          <div class="settings-section-title" data-t="Features">Features</div>
+          <div class="settings-row">
+            <div style="flex:1"><div class="settings-row-label" data-t="Fall Detection">Fall Detection</div>
+            <div class="settings-row-value" style="font-size:0.72rem;opacity:0.6" id="sh-fall-status">Off</div></div>
+            <div style="display:flex;gap:8px;align-items:center">
+              <button class="fall-sensitivity-btn" onclick="cycleFallSensitivity()" title="Sensitivity"><span id="sh-fall-sensitivity">medium</span></button>
+              <button class="fall-toggle" id="sh-fall-toggle" onclick="toggleFallMonitoring();_syncSettingsToggles()" ><div class="fall-toggle-knob"></div></button>
+            </div>
+          </div>
+          <div class="settings-row">
+            <div style="flex:1"><div class="settings-row-label" data-t="Voice Activation">Voice Activation</div>
+            <div class="settings-row-value" style="font-size:0.72rem;opacity:0.6" id="sh-voice-status">Off</div></div>
+            <div style="display:flex;gap:8px;align-items:center">
+              <button class="fall-sensitivity-btn" onclick="cycleVoiceDuration()" title="Duration"><span id="sh-voice-dur">20s</span></button>
+              <button class="fall-toggle" id="sh-voice-toggle" onclick="toggleVoiceActivation();_syncSettingsToggles()"><div class="fall-toggle-knob"></div></button>
+            </div>
+          </div>
+          <div class="settings-row"><div class="settings-row-label" data-t="Night Mode">Night Mode</div><button class="btn-link" onclick="enterNightMode()">Enter</button></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- System Sheet -->
+    <div class="settings-sheet" id="sh-system">
+      <div class="sheet-header"><div class="sheet-title" data-t="System">System</div><button class="sheet-close" onclick="closeSettingsSheet('sh-system')">✕</button></div>
+      <div class="sheet-body">
+        <div class="settings-section">
+          <div class="settings-section-title" data-t="Language">Language</div>
+          <div class="settings-row"><div class="settings-row-label" id="s-lang-display">English</div><button class="btn-link" onclick="showLanguageModal()" data-t="Change">Change</button></div>
+        </div>
+        <div class="settings-section">
+          <div class="settings-section-title" data-t="About">About</div>
+          <div class="settings-row-value" style="font-size:0.78rem;opacity:0.6">CareCall v1.0</div>
+        </div>
+        <div class="settings-section">
+          <button class="btn btn-danger" style="max-width:none" onclick="resetApp()" data-t="Reset &amp; Start Over">Reset &amp; Start Over</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ══ CALENDAR SCREEN ══ -->
+<div class="screen" id="s-calendar">
+
+  <!-- Month header row -->
+  <div class="cal-month-header">
+    <button class="cal-nav-btn" onclick="calNavPrev()" aria-label="Previous">&#x2039;</button>
+    <div class="cal-month-title" id="cal-month-title" onclick="calToggleExpand()"></div>
+    <button class="cal-nav-btn" onclick="calNavNext()" aria-label="Next">&#x203A;</button>
+    <span class="cal-header-icon">&#x1F4C5;</span>
+    <button class="cal-expand-toggle" id="cal-expand-btn" onclick="calToggleExpand()" aria-label="Toggle month view">
+      <span id="cal-expand-icon">&#x25BC;</span>
+    </button>
+  </div>
+
+  <!-- Calendar grid (dow headers + days, all in one grid) -->
+  <div class="cal-grid-container">
+    <div class="cal-dow-row" id="cal-dow-row"></div>
+    <div class="cal-grid-wrap" id="cal-grid-wrap">
+      <div class="cal-grid" id="cal-grid"></div>
+    </div>
+  </div>
+
+  <!-- Separator -->
+  <div class="cal-separator"></div>
+
+  <!-- Events list for selected day -->
+  <div class="cal-day-events" id="cal-day-events">
+    <div class="cal-day-events-title" id="cal-day-events-title"></div>
+    <div class="cal-events-list" id="cal-events-list">
+      <div class="cal-no-events" data-t="No events this day">No events this day</div>
+    </div>
+  </div>
+
+  <!-- FAB to add event -->
+  <button class="cal-fab" onclick="openCalendarEventEditor()" aria-label="Add event">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+    <span data-t="New Event">New Event</span>
+  </button>
+
+  <nav class="bottom-nav" id="calendar-bottom-nav">
+    <button class="bottom-nav-btn" onclick="showScreen(_homeScreen())" data-tab="home">
+      <span class="bottom-nav-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg></span>
+      <span class="bottom-nav-label" data-t="Call">Call</span>
+    </button>
+    <button class="bottom-nav-btn" onclick="showScreen('s-log')" data-tab="log">
+      <span class="bottom-nav-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></span>
+      <span class="bottom-nav-label" data-t="History">History</span>
+    </button>
+    <button class="bottom-nav-btn active" onclick="showScreen('s-calendar')" data-tab="calendar">
+      <span class="bottom-nav-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg></span>
+      <span class="bottom-nav-label" data-t="Meds">Meds</span>
+    </button>
+    <button class="bottom-nav-btn" onclick="showScreen('s-settings')" data-tab="settings">
+      <span class="bottom-nav-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></span>
+      <span class="bottom-nav-label" data-t="Settings">Settings</span>
+    </button>
+  </nav>
+</div>
+
+<!-- ══ CALENDAR EVENT EDITOR MODAL ══ -->
+<div class="settings-sheet" id="sh-cal-event">
+  <div class="sheet-header">
+    <div class="sheet-title" id="cal-editor-title" data-t="New Event">New Event</div>
+    <button class="sheet-close" onclick="closeCalendarEventEditor()">✕</button>
+  </div>
+  <div class="sheet-body">
+    <div class="settings-section">
+      <div class="input-group">
+        <div class="input-label" data-t="Title">Title</div>
+        <input class="text-input" id="cal-evt-title" type="text" placeholder="e.g. Dr. Smith appointment" maxlength="100">
+      </div>
+      <div class="input-group">
+        <div class="input-label" data-t="Date">Date</div>
+        <input class="text-input" id="cal-evt-date" type="date">
+      </div>
+      <div class="input-group">
+        <div class="input-label"><span data-t="Time">Time</span> <span style="font-size:0.72rem;opacity:0.6" data-t="(optional)">(optional)</span></div>
+        <input class="text-input" id="cal-evt-time" type="time">
+      </div>
+      <div class="input-group">
+        <div class="input-label" data-t="Type">Type</div>
+        <div class="cal-type-selector" id="cal-type-selector">
+          <button class="cal-type-btn selected" data-type="appointment" onclick="calSelectType(this)">🏥 <span data-t="Appointment">Appointment</span></button>
+          <button class="cal-type-btn" data-type="medication" onclick="calSelectType(this)">💊 <span data-t="Medication">Medication</span></button>
+          <button class="cal-type-btn" data-type="shift" onclick="calSelectType(this)">👤 <span data-t="Shift">Shift</span></button>
+          <button class="cal-type-btn" data-type="other" onclick="calSelectType(this)">📌 <span data-t="Other">Other</span></button>
+        </div>
+      </div>
+      <div class="input-group">
+        <div class="input-label"><span data-t="Notes">Notes</span> <span style="font-size:0.72rem;opacity:0.6" data-t="(optional)">(optional)</span></div>
+        <textarea class="text-input cal-notes" id="cal-evt-notes" rows="3" maxlength="500" placeholder="Additional details…"></textarea>
+      </div>
+      <div class="settings-row">
+        <div>
+          <div class="settings-row-label" data-t="Priority">Priority</div>
+          <div class="settings-row-value" style="font-size:0.72rem;opacity:0.6" data-t="Flag as important">Flag as important</div>
+        </div>
+        <button class="btn-link" id="cal-evt-priority-btn" onclick="calTogglePriority()">Off</button>
+      </div>
+    </div>
+    <button class="btn btn-primary" style="max-width:none" onclick="saveCalendarEvent()" data-t="Save">Save</button>
+    <button class="btn btn-danger" id="cal-evt-delete-btn" style="max-width:none;display:none" onclick="deleteCalendarEvent()" data-t="Delete Event">Delete Event</button>
+  </div>
+</div>
+
+<!-- ══ VOICE CALL OVERLAY ══ -->
+<div class="voice-call-overlay" id="voice-call-overlay">
+  <div class="vc-status" id="vc-status" data-t="Connecting…">Connecting…</div>
+  <div class="vc-who" id="vc-who"></div>
+  <div class="vc-timer" id="vc-timer">00:00</div>
+  <div class="vc-icon"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg></div>
+  <button class="vc-end-btn" onclick="endVoiceCall()" data-t="End Call">End Call</button>
+</div>
+
+<!-- ══ INCOMING VOICE CALL OVERLAY (patient side) ══ -->
+<div class="vc-incoming" id="vc-incoming">
+  <div class="vc-incoming-icon"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg></div>
+  <div class="vc-incoming-who" id="vc-incoming-who" data-t="Incoming voice call">Incoming voice call</div>
+  <div class="vc-incoming-btns">
+    <button class="vc-answer-btn" onclick="answerVoiceCall()" data-t="Answer">Answer</button>
+    <button class="vc-decline-btn" onclick="declineVoiceCall()" data-t="Decline">Decline</button>
+  </div>
+</div>
+
+<!-- ══ PROFILE MODAL ══ -->
+<div class="profile-modal" id="profile-modal">
+  <div class="profile-modal-card">
+    <button class="sheet-close" onclick="closeProfileModal()">✕</button>
+    <div class="profile-photo" id="pm-photo"></div>
+    <div class="profile-name" id="pm-name"></div>
+    <div class="profile-role" id="pm-role"></div>
+    <div class="profile-status" id="pm-status"></div>
+    <div class="profile-phone" id="pm-phone"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<!-- ══ NIGHT / BEDSIDE MODE ══ -->
+<div class="night-mode" id="night-mode">
+  <button class="night-close-x" onclick="exitNightMode()" aria-label="Close">✕</button>
+  <div class="night-clock" id="night-clock">00:00</div>
+  <button class="night-sos-btn" id="night-sos-btn" onclick="nightModeSos()">
+    <div class="night-sos-icon"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg></div>
+    <div class="night-sos-label">CALL</div>
+  </button>
+  <div class="night-status" id="night-status"></div>
+  <button class="night-exit-btn" onclick="exitNightMode()" data-t="Exit Night Mode">Exit Night Mode</button>
+  <div class="night-swipe-hint" data-t="Swipe down to exit">Swipe down to exit</div>
+</div>
+
+<!-- PWA Install Banner -->
+<div class="install-banner" id="install-banner">
+  <div class="install-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg></div>
+  <div class="install-text">
+    <strong>Add CareCall to Home Screen</strong>
+    <span>Works like a native app — no App Store needed</span>
+  </div>
+  <button class="install-btn" id="install-btn" onclick="triggerInstall()">Install</button>
+  <button class="install-dismiss" onclick="dismissInstall()" title="Dismiss">✕</button>
+</div>
+
+<!-- iOS Install Instructions Sheet -->
+<div class="ios-sheet" id="ios-sheet">
+  <div class="ios-sheet-inner">
+    <div class="ios-sheet-title">Add to Home Screen</div>
+    <div class="ios-steps">
+      <div class="ios-step">
+        <div class="ios-step-num">1</div>
+        <div class="ios-step-txt">Tap the <strong>Share button</strong> <span style="font-size:1.1rem">⬆️</span> at the bottom of Safari</div>
+      </div>
+      <div class="ios-step">
+        <div class="ios-step-num">2</div>
+        <div class="ios-step-txt">Scroll down and tap <strong>"Add to Home Screen"</strong></div>
+      </div>
+      <div class="ios-step">
+        <div class="ios-step-num">3</div>
+        <div class="ios-step-txt">Tap <strong>"Add"</strong> in the top right corner</div>
+      </div>
+    </div>
+    <button class="ios-close" onclick="document.getElementById('ios-sheet').classList.remove('show')">Got it</button>
+  </div>
+</div>
+
+<script type="module" src="/src/main.js"></script>
+</body>
+</html>

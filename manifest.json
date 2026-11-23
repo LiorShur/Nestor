@@ -1,0 +1,30 @@
+{
+  "name": "CareCall",
+  "short_name": "CareCall",
+  "description": "Simple, reliable care alerts for home and assisted living",
+  "start_url": "/CareCall/carecall-firebase.html",
+  "scope": "/CareCall/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0D1520",
+  "theme_color": "#0D1520",
+  "categories": [
+    "health",
+    "medical",
+    "utilities"
+  ],
+  "icons": [
+    {
+      "src": "icon-192.svg",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icon-512.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

@@ -1,0 +1,8 @@
+node_modules/
+*.log
+.DS_Store
+
+# Vite build output
+dist/
+service-account-key.json
+.env
