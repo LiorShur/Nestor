@@ -1074,6 +1074,18 @@ function _onFallDetected(alertTitle) {
   });
 }
 
+// Keyboard and switch-access alternative: a deliberate confirmation followed by
+// the same cancellable countdown used by the existing SOS long-press.
+function _emergencyKeyboardActivate(evt) {
+  if (evt.key !== 'Enter' && evt.key !== ' ') return;
+  evt.preventDefault();
+  if (evt.repeat || PS.status === 'calling' || PS.status === 'acked') return;
+  if (document.getElementById('fall-alert')?.classList.contains('show')) return;
+  if (window.confirm(t('Start emergency alert?'))) {
+    _onFallDetected(t('Emergency Alert'));
+  }
+}
+
 // ── Emergency button: hold-to-activate safety mechanism ──
 let _emergencyTimer = null;
 let _emergencyStart = 0;
