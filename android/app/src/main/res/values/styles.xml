@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <!-- Base application theme. -->
+    <style name="AppTheme" parent="Theme.AppCompat.Light.DarkActionBar">
+        <!-- Customize your theme here. -->
+        <item name="colorPrimary">@color/colorPrimary</item>
+        <item name="colorPrimaryDark">@color/colorPrimaryDark</item>
+        <item name="colorAccent">@color/colorAccent</item>
+    </style>
+
+    <style name="AppTheme.NoActionBar" parent="Theme.AppCompat.DayNight.NoActionBar">
+        <item name="windowActionBar">false</item>
+        <item name="windowNoTitle">true</item>
+        <!-- Use the same dark colour as the HTML loading overlay so the
+             WebView's initial paint doesn't flash a different background. -->
+        <item name="android:windowBackground">@color/launchSplashBg</item>
+        <item name="android:statusBarColor">@color/launchSplashBg</item>
+    </style>
+
+
+    <!-- Launch theme (Android 12+ system splash). Colors + icon are
+         configured via the AndroidX SplashScreen API so the native
+         splash looks identical to the HTML #loading overlay that
+         follows it — no more double-splash flicker. -->
+    <style name="AppTheme.NoActionBarLaunch" parent="Theme.SplashScreen">
+        <!-- Android 12+ -->
+        <item name="windowSplashScreenBackground">@color/launchSplashBg</item>
+        <item name="windowSplashScreenAnimatedIcon">@mipmap/ic_launcher</item>
+        <item name="postSplashScreenTheme">@style/AppTheme.NoActionBar</item>
+        <!-- Pre-Android 12 fallback: solid dark window (was
+             @drawable/splash which flashed the Capacitor template). -->
+        <item name="android:windowBackground">@color/launchSplashBg</item>
+        <item name="android:background">@color/launchSplashBg</item>
+        <item name="android:statusBarColor">@color/launchSplashBg</item>
+    </style>
+</resources>

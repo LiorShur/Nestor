@@ -1,0 +1,8 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">CareCall</string>
+    <string name="title_activity_main">CareCall</string>
+    <string name="package_name">com.carecall.app</string>
+    <string name="custom_url_scheme">com.carecall.app</string>
+    <string name="widget_description">One-tap SOS call to your carer</string>
+</resources>

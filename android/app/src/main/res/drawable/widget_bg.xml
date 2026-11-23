@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Rounded dark background for the SOS widget, matching the app's
+     patient-screen palette. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <solid android:color="#E05A1A" />
+    <corners android:radius="24dp" />
+</shape>
