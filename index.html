@@ -263,7 +263,8 @@ setTimeout(function() {
         <div class="mcb-sublabel">Tap for help</div>
       </button>
       <!-- Emergency button: anchored to bottom-right of call ring -->
-      <button class="emergency-btn" id="emergency-btn" role="button" aria-label="Emergency SOS - hold for 3 seconds"
+      <button class="emergency-btn" id="emergency-btn" role="button" aria-label="Emergency SOS. Hold for 3 seconds, or press Enter or Space and confirm."
+        onkeydown="_emergencyKeyboardActivate(event)"
         ontouchstart="_emergencyDown(event)" ontouchend="_emergencyUp(event)" ontouchcancel="_emergencyUp(event)"
         onmousedown="_emergencyDown(event)" onmouseup="_emergencyUp(event)" onmouseleave="_emergencyUp(event)">
         <div class="emergency-charging-ring"></div>
