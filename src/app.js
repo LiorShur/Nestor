@@ -3342,11 +3342,25 @@ function _updateNeedsIndicator() {
   if (trigger) trigger.innerHTML = '<span class="needs-trigger-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></span> ' + tags.join(' · ');
 }
 
+function _needsSheetKeydown(e) {
+  const sheet = document.getElementById('needs-sheet');
+  if (!sheet?.classList.contains('open')) return;
+  if (e.key === 'Escape') { e.preventDefault(); closeNeedsSheet(); return; }
+  if (e.key !== 'Tab') return;
+  const controls = [...sheet.querySelectorAll('button:not([disabled]), input:not([disabled]), textarea:not([disabled])')]
+    .filter(el => el.getClientRects().length > 0);
+  if (!controls.length) return;
+  const first = controls[0], last = controls[controls.length - 1];
+  if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+  else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+}
+
 function openNeedsSheet() {
   const sheet = document.getElementById('needs-sheet');
   if (sheet) {
     sheet.classList.add('open');
     sheet.addEventListener('click', _needsSheetBackdrop);
+    sheet.addEventListener('keydown', _needsSheetKeydown);
     sheet.querySelector('.sheet-close')?.focus();
   }
 }
@@ -3355,6 +3369,7 @@ function closeNeedsSheet() {
   if (sheet) {
     sheet.classList.remove('open');
     sheet.removeEventListener('click', _needsSheetBackdrop);
+    sheet.removeEventListener('keydown', _needsSheetKeydown);
     document.getElementById('needs-trigger')?.focus();
   }
   _updateNeedsIndicator();
@@ -3760,6 +3775,9 @@ function _showNoResponseFallback() {
   document.getElementById('emergency-call-overlay')?.remove();
   const overlay = document.createElement('div');
   overlay.id = 'emergency-call-overlay';
+  overlay.setAttribute('role', 'alertdialog');
+  overlay.setAttribute('aria-modal', 'true');
+  overlay.setAttribute('aria-label', t('No carer responded'));
   overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:40;display:flex;align-items:center;justify-content:center;padding:16px;overflow-y:auto';
 
   let phoneHtml = '';
@@ -3791,6 +3809,7 @@ function _showNoResponseFallback() {
     </div>`;
   overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
   document.body.appendChild(overlay);
+  overlay.querySelector('a[href^="tel:"]')?.focus();
 }
 
 function watchForAck() {
