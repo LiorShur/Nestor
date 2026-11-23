@@ -3830,8 +3830,10 @@ function showPatientAck(call) {
   document.getElementById('ack-overlay').classList.add('show');
   if (navigator.vibrate) navigator.vibrate([80,60,80,60,80]);
 
-  // Auto-dismiss after 10s, or user can tap OK
-  PS._ackDismissTimer = setTimeout(() => dismissAckOverlay(), 10000);
+  // Keep the acknowledgement visible until the patient explicitly dismisses it.
+  // Automatic dismissal could make an elderly patient miss the confirmation.
+  clearTimeout(PS._ackDismissTimer);
+  document.querySelector('#ack-overlay .ack-dismiss-btn')?.focus();
 }
 
 function dismissAckOverlay() {
@@ -3839,11 +3841,15 @@ function dismissAckOverlay() {
   document.getElementById('ack-overlay').classList.remove('show');
   PS.activeCallId = null; PS._activeCallRoom = null;
   PS.selectedNeeds = new Set();
-  document.querySelectorAll('.need-row,.need-pill,.need-btn').forEach(b=>b.classList.remove('selected'));
+  document.querySelectorAll('.need-row,.need-pill,.need-btn').forEach(b=>{
+    b.classList.remove('selected');
+    if (b.hasAttribute('aria-pressed')) b.setAttribute('aria-pressed', 'false');
+  });
   _updateNeedsIndicator();
   document.getElementById('custom-input-row').classList.remove('show');
   document.getElementById('custom-msg').value = '';
   setPatientStatus('ready');
+  document.getElementById('main-call-btn')?.focus();
 }
 
 // ════════════════════════════════════════════════════════════
