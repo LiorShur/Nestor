@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>Option B: GrandPad Simple</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Inter', sans-serif; background: #F0F0F0; display: flex; gap: 24px; padding: 24px; flex-wrap: wrap; justify-content: center; }
+  h2 { font-size: 14px; text-transform: uppercase; letter-spacing: 2px; color: #999; margin-bottom: 8px; text-align: center; }
+
+  .phone { width: 390px; height: 844px; border-radius: 40px; overflow: hidden; position: relative; box-shadow: 0 20px 60px rgba(0,0,0,0.15); flex-shrink: 0; }
+
+  /* ── PATIENT ── */
+  .patient { background: #FFFFFF; color: #1A202C; display: flex; flex-direction: column; }
+  .patient .header { padding: 60px 24px 12px; text-align: center; }
+  .patient .greeting { font-size: 1.1rem; font-weight: 400; color: #718096; }
+  .patient .name { font-size: 1.6rem; font-weight: 700; color: #1A202C; margin-top: 2px; }
+  .patient .status { text-align: center; padding: 8px; }
+  .patient .status-pill { display: inline-flex; align-items: center; gap: 8px; font-size: 0.85rem; color: #38A169; font-weight: 600; }
+  .patient .status-dot { width: 8px; height: 8px; border-radius: 50%; background: #38A169; }
+
+  .patient .sos-area { flex: none; display: flex; align-items: center; justify-content: center; padding: 24px 32px 16px; }
+  .patient .sos-btn { width: 260px; height: 260px; border-radius: 50%; border: none; background: #E53E3E; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; box-shadow: 0 12px 48px rgba(229,62,62,0.35); transition: transform 0.15s; }
+  .patient .sos-btn:active { transform: scale(0.95); }
+  .patient .sos-text { font-size: 3.5rem; font-weight: 800; color: #fff; letter-spacing: 2px; }
+  .patient .sos-sub { font-size: 1rem; font-weight: 600; color: rgba(255,255,255,0.85); letter-spacing: 1px; }
+
+  .patient .needs { padding: 16px 20px; flex: 1; overflow-y: auto; }
+  .patient .needs-title { font-size: 0.8rem; letter-spacing: 2px; text-transform: uppercase; color: #A0AEC0; font-weight: 700; margin-bottom: 10px; text-align: center; }
+  .patient .need-row { display: flex; align-items: center; gap: 16px; padding: 18px 20px; background: #F7FAFC; border-radius: 14px; margin-bottom: 8px; cursor: pointer; transition: background 0.15s; border: 1.5px solid #EDF2F7; }
+  .patient .need-row:active { background: #EBF8FF; border-color: #3B82C4; }
+  .patient .need-icon { font-size: 1.6rem; width: 36px; text-align: center; }
+  .patient .need-text { font-size: 1.1rem; font-weight: 600; color: #2D3748; }
+
+  .patient .bottom-nav { display: flex; justify-content: space-around; padding: 8px 0 40px; border-top: 1px solid #E2E8F0; background: #fff; }
+  .patient .nav-btn { display: flex; flex-direction: column; align-items: center; gap: 4px; font-size: 0.7rem; font-weight: 700; color: #CBD5E0; background: none; border: none; cursor: pointer; padding: 8px 20px; }
+  .patient .nav-btn.active { color: #3B82C4; }
+  .patient .nav-icon { font-size: 1.5rem; }
+
+  /* ── CARER ── */
+  .carer { background: #FFFFFF; color: #1A202C; display: flex; flex-direction: column; }
+  .carer .header { padding: 60px 24px 16px; display: flex; justify-content: space-between; align-items: center; }
+  .carer .logo { font-size: 1.3rem; font-weight: 300; color: #3B82C4; }
+  .carer .header-name { font-size: 0.85rem; font-weight: 600; color: #4A5568; background: #EDF2F7; padding: 6px 14px; border-radius: 100px; }
+
+  .carer .status-bar { display: flex; gap: 8px; padding: 0 24px 16px; }
+  .carer .status-btn { flex: 1; padding: 12px; border-radius: 12px; border: 2px solid #E2E8F0; background: #fff; color: #718096; font-size: 0.85rem; font-weight: 700; font-family: 'Inter', sans-serif; cursor: pointer; text-align: center; }
+  .carer .status-btn.active { background: #EBF8FF; border-color: #3B82C4; color: #3B82C4; }
+
+  .carer .content { flex: 1; padding: 0 24px; overflow-y: auto; }
+  .carer .orb-area { text-align: center; padding: 24px 0; }
+  .carer .orb { width: 160px; height: 160px; border-radius: 50%; background: #EBF8FF; display: inline-flex; align-items: center; justify-content: center; font-size: 3.5rem; border: 3px solid rgba(59,130,196,0.2); }
+  .carer .orb-label { font-size: 0.85rem; color: #3B82C4; font-weight: 600; margin-top: 12px; }
+
+  .carer .members { padding: 0 0 16px; display: flex; gap: 8px; }
+  .carer .member { display: flex; align-items: center; gap: 8px; background: #F7FAFC; border: 1.5px solid #EDF2F7; padding: 10px 16px; border-radius: 12px; font-size: 0.85rem; font-weight: 600; color: #2D3748; }
+  .carer .m-dot { width: 8px; height: 8px; border-radius: 50%; }
+  .carer .m-dot.on { background: #38A169; }
+
+  .carer .call-card { background: #FFF5F5; border-radius: 16px; padding: 20px; border: 2px solid #FED7D7; margin-bottom: 12px; }
+  .carer .call-who { font-weight: 700; font-size: 1.1rem; color: #1A202C; }
+  .carer .call-meta { font-size: 0.78rem; color: #718096; margin-top: 4px; }
+  .carer .call-type { display: inline-block; background: #FED7D7; color: #E53E3E; padding: 6px 14px; border-radius: 8px; font-size: 0.82rem; font-weight: 700; margin-top: 10px; }
+  .carer .call-ack { display: block; width: 100%; background: #38A169; color: #fff; border: none; border-radius: 14px; padding: 16px; font-size: 1rem; font-weight: 700; font-family: 'Inter', sans-serif; cursor: pointer; margin-top: 12px; text-align: center; }
+
+  .carer .bottom-nav { display: flex; justify-content: space-around; padding: 8px 0 40px; border-top: 1px solid #E2E8F0; background: #fff; }
+  .carer .nav-btn { display: flex; flex-direction: column; align-items: center; gap: 4px; font-size: 0.7rem; font-weight: 700; color: #CBD5E0; background: none; border: none; cursor: pointer; padding: 8px 20px; }
+  .carer .nav-btn.active { color: #3B82C4; }
+  .carer .nav-icon { font-size: 1.5rem; }
+
+  /* ── ONBOARDING ── */
+  .onboard { background: #FFFFFF; color: #1A202C; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 60px 28px 40px; gap: 20px; }
+  .onboard .logo { font-size: 2.8rem; font-weight: 300; color: #3B82C4; }
+  .onboard .tagline { font-size: 1rem; color: #718096; text-align: center; line-height: 1.6; max-width: 300px; }
+  .onboard .role-btn { width: 100%; max-width: 340px; display: flex; align-items: center; gap: 20px; padding: 24px; border-radius: 20px; border: 2.5px solid #E2E8F0; cursor: pointer; transition: all 0.15s; background: #fff; }
+  .onboard .role-btn:hover { border-color: #3B82C4; }
+  .onboard .r-icon { font-size: 2.2rem; width: 56px; height: 56px; display: flex; align-items: center; justify-content: center; background: #EBF8FF; border-radius: 16px; flex-shrink: 0; }
+  .onboard .r-title { font-weight: 700; font-size: 1.15rem; color: #1A202C; }
+  .onboard .r-desc { font-size: 0.85rem; color: #718096; margin-top: 4px; line-height: 1.4; }
+  .onboard .signin { font-size: 0.9rem; color: #3B82C4; background: none; border: none; cursor: pointer; font-family: 'Inter', sans-serif; font-weight: 600; margin-top: 12px; }
+</style>
+</head>
+<body>
+
+<div>
+  <h2>Patient Home</h2>
+  <div class="phone patient">
+    <div class="header">
+      <div class="greeting">Hello,</div>
+      <div class="name">Margaret</div>
+    </div>
+    <div class="status">
+      <div class="status-pill"><div class="status-dot"></div> Sarah is online</div>
+    </div>
+    <div class="sos-area">
+      <button class="sos-btn">
+        <div class="sos-text">SOS</div>
+        <div class="sos-sub">Tap to call</div>
+      </button>
+    </div>
+    <div class="needs">
+      <div class="needs-title">Or tell us what you need</div>
+      <div class="need-row"><span class="need-icon">💧</span><span class="need-text">Water</span></div>
+      <div class="need-row"><span class="need-icon">💊</span><span class="need-text">Medication</span></div>
+      <div class="need-row"><span class="need-icon">🍽</span><span class="need-text">Food</span></div>
+      <div class="need-row"><span class="need-icon">🚽</span><span class="need-text">Toilet</span></div>
+      <div class="need-row"><span class="need-icon">😣</span><span class="need-text">Pain</span></div>
+    </div>
+    <div class="bottom-nav">
+      <button class="nav-btn active"><span class="nav-icon">⌂</span>Home</button>
+      <button class="nav-btn"><span class="nav-icon">☰</span>Log</button>
+      <button class="nav-btn"><span class="nav-icon">🌙</span>Night</button>
+      <button class="nav-btn"><span class="nav-icon">⚙</span>Settings</button>
+    </div>
+  </div>
+</div>
+
+<div>
+  <h2>Carer Home</h2>
+  <div class="phone carer">
+    <div class="header">
+      <div class="logo">CareCall</div>
+      <div class="header-name">Sarah</div>
+    </div>
+    <div class="status-bar">
+      <button class="status-btn active">Available</button>
+      <button class="status-btn">Busy</button>
+      <button class="status-btn">Off Duty</button>
+    </div>
+    <div class="content">
+      <div class="members">
+        <div class="member"><div class="m-dot on"></div> Margaret</div>
+        <div class="member"><div class="m-dot on"></div> David</div>
+      </div>
+      <div class="orb-area">
+        <div class="orb">🔔</div>
+        <div class="orb-label">Listening for calls</div>
+      </div>
+      <div class="call-card">
+        <div class="call-who">Margaret is calling!</div>
+        <div class="call-meta">Just now</div>
+        <div class="call-type">💧 Water</div>
+        <button class="call-ack">I'm on my way</button>
+      </div>
+    </div>
+    <div class="bottom-nav">
+      <button class="nav-btn active"><span class="nav-icon">⌂</span>Home</button>
+      <button class="nav-btn"><span class="nav-icon">☰</span>Log</button>
+      <button class="nav-btn"><span class="nav-icon">🏥</span>Emergency</button>
+      <button class="nav-btn"><span class="nav-icon">⚙</span>Settings</button>
+    </div>
+  </div>
+</div>
+
+<div>
+  <h2>Onboarding</h2>
+  <div class="phone onboard">
+    <div class="logo">CareCall</div>
+    <div class="tagline">Simple, reliable care alerts for home and assisted living</div>
+    <div class="role-btn">
+      <div class="r-icon">🛏️</div>
+      <div>
+        <div class="r-title">I need care</div>
+        <div class="r-desc">Call carers with one tap</div>
+      </div>
+    </div>
+    <div class="role-btn">
+      <div class="r-icon">🔔</div>
+      <div>
+        <div class="r-title">I provide care</div>
+        <div class="r-desc">Receive and respond to calls</div>
+      </div>
+    </div>
+    <div class="role-btn">
+      <div class="r-icon">👨‍👩‍👧</div>
+      <div>
+        <div class="r-title">Family member</div>
+        <div class="r-desc">View call history and care notes</div>
+      </div>
+    </div>
+    <button class="signin">Already have an account? Sign in</button>
+  </div>
+</div>
+
+</body>
+</html>

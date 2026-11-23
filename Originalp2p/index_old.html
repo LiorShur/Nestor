@@ -1,0 +1,833 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>CareCall</title>
+<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,700&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0D1520;
+    --surface: #182232;
+    --surface2: #1F2F42;
+    --patient: #FF6B35;
+    --patient-dim: rgba(255,107,53,0.15);
+    --carer: #38BDF8;
+    --carer-dim: rgba(56,189,248,0.15);
+    --success: #34D399;
+    --success-dim: rgba(52,211,153,0.15);
+    --danger: #F87171;
+    --text: #F1F5F9;
+    --text-dim: #64748B;
+    --text-mid: #94A3B8;
+  }
+
+  html, body {
+    height: 100%;
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    overflow: hidden;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .screen {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 28px 24px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.35s cubic-bezier(.4,0,.2,1);
+  }
+  .screen.active { opacity: 1; pointer-events: all; }
+
+  /* ── WELCOME ── */
+  .app-logo {
+    font-family: 'DM Serif Display', serif;
+    font-size: 3rem;
+    letter-spacing: -1.5px;
+    line-height: 1;
+    margin-bottom: 6px;
+  }
+  .app-logo em { color: var(--carer); font-style: normal; }
+
+  .app-tagline {
+    color: var(--text-dim);
+    font-size: 0.875rem;
+    font-weight: 300;
+    margin-bottom: 52px;
+    letter-spacing: 0.3px;
+  }
+
+  .role-grid {
+    width: 100%;
+    max-width: 380px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  .role-card {
+    background: var(--surface);
+    border-radius: 22px;
+    padding: 22px 24px;
+    cursor: pointer;
+    border: 2px solid transparent;
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    transition: transform 0.15s ease, background 0.15s ease;
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+  }
+  .role-card:active { transform: scale(0.97); background: var(--surface2); }
+  .role-card.patient { border-color: var(--patient); }
+  .role-card.carer { border-color: var(--carer); }
+
+  .role-emoji {
+    font-size: 2.2rem;
+    width: 58px;
+    height: 58px;
+    border-radius: 15px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+  .patient .role-emoji { background: var(--patient-dim); }
+  .carer .role-emoji { background: var(--carer-dim); }
+
+  .role-text h3 { font-size: 1.1rem; font-weight: 600; margin-bottom: 3px; }
+  .patient .role-text h3 { color: var(--patient); }
+  .carer .role-text h3 { color: var(--carer); }
+  .role-text p { font-size: 0.8rem; color: var(--text-dim); line-height: 1.45; }
+
+  /* ── SHARED ELEMENTS ── */
+  .back-btn {
+    position: fixed;
+    top: 18px;
+    left: 18px;
+    background: var(--surface);
+    border: none;
+    border-radius: 12px;
+    padding: 10px 18px;
+    color: var(--text-mid);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.82rem;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    z-index: 50;
+    transition: background 0.15s;
+  }
+  .back-btn:active { background: var(--surface2); }
+
+  .section-title {
+    font-family: 'DM Serif Display', serif;
+    font-size: 2rem;
+    margin-bottom: 6px;
+    text-align: center;
+  }
+  .section-sub {
+    color: var(--text-dim);
+    font-size: 0.875rem;
+    text-align: center;
+    margin-bottom: 36px;
+  }
+
+  .status-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 18px;
+    border-radius: 100px;
+    font-size: 0.8rem;
+    font-weight: 500;
+    margin-bottom: 28px;
+    letter-spacing: 0.2px;
+  }
+  .dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .pill-waiting { background: rgba(100,116,139,0.15); color: var(--text-dim); }
+  .pill-waiting .dot { background: var(--text-dim); }
+  .pill-connected { background: var(--success-dim); color: var(--success); }
+  .pill-connected .dot { background: var(--success); animation: blink 2s infinite; }
+  .pill-alerting { background: rgba(248,113,113,0.15); color: var(--danger); }
+  .pill-alerting .dot { background: var(--danger); animation: blink 0.6s infinite; }
+
+  @keyframes blink {
+    0%,100% { opacity:1; transform:scale(1); }
+    50% { opacity:0.4; transform:scale(0.7); }
+  }
+
+  /* ── CARER SCREEN ── */
+  .code-card {
+    background: var(--surface);
+    border-radius: 22px;
+    padding: 26px 36px;
+    text-align: center;
+    width: 100%;
+    max-width: 320px;
+    margin-bottom: 16px;
+  }
+  .code-card-label {
+    font-size: 0.72rem;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin-bottom: 14px;
+  }
+  .code-display {
+    font-family: 'DM Serif Display', serif;
+    font-size: 3.4rem;
+    letter-spacing: 10px;
+    color: var(--carer);
+    line-height: 1;
+  }
+  .code-hint {
+    font-size: 0.78rem;
+    color: var(--text-dim);
+    margin-top: 12px;
+  }
+
+  .btn {
+    width: 100%;
+    max-width: 320px;
+    padding: 17px 24px;
+    border: none;
+    border-radius: 16px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.95rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: transform 0.12s ease, opacity 0.12s;
+    -webkit-tap-highlight-color: transparent;
+    letter-spacing: 0.3px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+  .btn:active { transform: scale(0.97); }
+  .btn-carer { background: var(--carer); color: #0D1520; }
+  .btn-patient { background: var(--patient); color: white; }
+  .btn-ghost { background: var(--surface); color: var(--text-mid); }
+
+  /* ── INCOMING CALL OVERLAY ── */
+  .incoming-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(8, 12, 18, 0.97);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 20px;
+    z-index: 200;
+    padding: 36px 28px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+  }
+  .incoming-overlay.active { opacity: 1; pointer-events: all; }
+
+  .bell-ring {
+    font-size: 6rem;
+    animation: ring 0.45s ease-in-out infinite alternate;
+    filter: drop-shadow(0 0 30px rgba(56,189,248,0.4));
+    line-height: 1;
+  }
+  @keyframes ring {
+    from { transform: rotate(-28deg); }
+    to   { transform: rotate(28deg); }
+  }
+
+  .incoming-title {
+    font-family: 'DM Serif Display', serif;
+    font-size: 2.6rem;
+    color: var(--danger);
+    text-align: center;
+    line-height: 1.1;
+  }
+  .incoming-sub {
+    color: var(--text-mid);
+    font-size: 0.9rem;
+    text-align: center;
+  }
+
+  .incoming-pulse {
+    position: absolute;
+    inset: 0;
+    border-radius: 0;
+    animation: screen-pulse 0.8s ease-in-out infinite alternate;
+    pointer-events: none;
+  }
+  @keyframes screen-pulse {
+    from { background: transparent; }
+    to   { background: rgba(248,113,113,0.04); }
+  }
+
+  .btn-answer {
+    background: var(--success);
+    color: #0D1520;
+    border: none;
+    border-radius: 100px;
+    padding: 22px 40px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 1.1rem;
+    font-weight: 700;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    transition: transform 0.12s;
+    letter-spacing: 0.3px;
+    width: 100%;
+    max-width: 300px;
+  }
+  .btn-answer:active { transform: scale(0.97); }
+
+  /* ── PATIENT SCREEN ── */
+  .code-input {
+    width: 100%;
+    background: var(--surface);
+    border: 2px solid var(--surface2);
+    border-radius: 18px;
+    padding: 20px;
+    font-size: 2rem;
+    font-family: 'DM Serif Display', serif;
+    letter-spacing: 8px;
+    color: var(--text);
+    text-align: center;
+    outline: none;
+    -webkit-appearance: none;
+    transition: border-color 0.2s;
+    caret-color: var(--patient);
+  }
+  .code-input:focus { border-color: var(--patient); }
+  .code-input::placeholder { color: var(--surface2); letter-spacing: 4px; font-size: 1.4rem; }
+
+  .input-wrap { width: 100%; max-width: 320px; margin-bottom: 14px; }
+
+  .err-msg {
+    color: var(--danger);
+    font-size: 0.8rem;
+    text-align: center;
+    margin-top: 8px;
+    min-height: 20px;
+  }
+
+  /* ── BIG CALL BUTTON ── */
+  .call-zone {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 22px;
+    width: 100%;
+  }
+
+  .call-ring-wrap {
+    position: relative;
+    width: 220px;
+    height: 220px;
+  }
+
+  .call-ring {
+    position: absolute;
+    inset: -20px;
+    border-radius: 50%;
+    border: 2px solid rgba(255,107,53,0.25);
+    animation: ring-breathe 3s ease-in-out infinite;
+  }
+  .call-ring:nth-child(2) { inset: -36px; border-color: rgba(255,107,53,0.12); animation-delay: 0.5s; }
+
+  @keyframes ring-breathe {
+    0%,100% { transform: scale(1); opacity: 0.7; }
+    50%     { transform: scale(1.06); opacity: 0.2; }
+  }
+
+  .call-btn {
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    border: none;
+    background: var(--patient);
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    -webkit-tap-highlight-color: transparent;
+    transition: transform 0.12s ease, background 0.25s ease;
+    box-shadow: 0 8px 40px rgba(255,107,53,0.35), 0 2px 8px rgba(0,0,0,0.4);
+  }
+  .call-btn:active { transform: scale(0.94); box-shadow: 0 4px 20px rgba(255,107,53,0.2); }
+  .call-btn.state-calling { background: var(--danger); animation: call-throb 0.9s ease-in-out infinite; }
+
+  @keyframes call-throb {
+    0%,100% { box-shadow: 0 0 0 0 rgba(248,113,113,0.5); }
+    50%     { box-shadow: 0 0 0 28px rgba(248,113,113,0); }
+  }
+
+  .call-icon  { font-size: 3.8rem; line-height: 1; }
+  .call-label {
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: white;
+  }
+
+  .call-hint { color: var(--text-dim); font-size: 0.8rem; text-align: center; }
+
+  /* ── ACKNOWLEDGED ── */
+  .ack-box {
+    background: var(--success-dim);
+    border: 1px solid rgba(52,211,153,0.3);
+    border-radius: 20px;
+    padding: 28px 32px;
+    text-align: center;
+    max-width: 300px;
+    width: 100%;
+  }
+  .ack-emoji  { font-size: 3rem; margin-bottom: 10px; }
+  .ack-title  { color: var(--success); font-size: 1.3rem; font-weight: 700; margin-bottom: 6px; }
+  .ack-body   { color: var(--text-mid); font-size: 0.85rem; line-height: 1.5; }
+
+  /* ── SPINNER ── */
+  .spinner {
+    width: 22px; height: 22px;
+    border: 2.5px solid rgba(255,255,255,0.15);
+    border-top-color: var(--carer);
+    border-radius: 50%;
+    animation: spin 0.75s linear infinite;
+    flex-shrink: 0;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .connecting-row {
+    display: flex; align-items: center; gap: 12px;
+    color: var(--text-dim); font-size: 0.9rem;
+    margin-top: 16px;
+  }
+
+  /* ── TOAST ── */
+  .toast {
+    position: fixed;
+    bottom: 28px;
+    left: 50%;
+    transform: translateX(-50%) translateY(70px);
+    background: var(--surface2);
+    color: var(--text-mid);
+    border-radius: 14px;
+    padding: 12px 22px;
+    font-size: 0.84rem;
+    white-space: nowrap;
+    z-index: 300;
+    transition: transform 0.3s cubic-bezier(.4,0,.2,1);
+    pointer-events: none;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+  }
+  .toast.show { transform: translateX(-50%) translateY(0); }
+
+  /* ── FOOTER NOTE ── */
+  .footer-note {
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    text-align: center;
+    padding: 12px;
+    font-size: 0.68rem;
+    color: rgba(255,255,255,0.12);
+    pointer-events: none;
+  }
+</style>
+</head>
+<body>
+
+<!-- ══ SCREEN: WELCOME ══ -->
+<div class="screen active" id="s-welcome">
+  <div class="app-logo">Care<em>Call</em></div>
+  <p class="app-tagline">Simple care alerts over your home WiFi</p>
+
+  <div class="role-grid">
+    <div class="role-card patient" onclick="selectRole('patient')">
+      <div class="role-emoji">🛏️</div>
+      <div class="role-text">
+        <h3>I'm the Patient</h3>
+        <p>One tap to call your carer from anywhere in the home</p>
+      </div>
+    </div>
+    <div class="role-card carer" onclick="selectRole('carer')">
+      <div class="role-emoji">🔔</div>
+      <div class="role-text">
+        <h3>I'm the Carer</h3>
+        <p>Get instant alerts with sound and vibration when needed</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ SCREEN: CARER ══ -->
+<div class="screen" id="s-carer">
+  <button class="back-btn" onclick="goBack()">← Back</button>
+
+  <div class="section-title">Carer Mode</div>
+  <p class="section-sub">Share this code with the patient's phone</p>
+
+  <div class="code-card">
+    <div class="code-card-label">Room Code</div>
+    <div class="code-display" id="carer-code">····</div>
+    <div class="code-hint">Patient enters this to connect</div>
+  </div>
+
+  <div class="status-pill pill-waiting" id="carer-pill">
+    <div class="dot"></div>
+    <span id="carer-pill-text">Waiting for patient…</span>
+  </div>
+
+  <button class="btn btn-ghost" onclick="copyCode()">📋 Copy Code</button>
+
+  <!-- Incoming call overlay -->
+  <div class="incoming-overlay" id="incoming-overlay">
+    <div class="incoming-pulse"></div>
+    <div class="bell-ring">🔔</div>
+    <div class="incoming-title">Patient<br>Calling!</div>
+    <p class="incoming-sub">Your patient needs assistance right now</p>
+    <button class="btn-answer" onclick="acknowledgeCall()">✓ &nbsp;I'm on my way</button>
+  </div>
+</div>
+
+<!-- ══ SCREEN: PATIENT ══ -->
+<div class="screen" id="s-patient">
+  <button class="back-btn" onclick="goBack()">← Back</button>
+
+  <!-- Connect view -->
+  <div id="v-connect">
+    <div class="section-title">Patient Mode</div>
+    <p class="section-sub">Enter the code shown on the carer's phone</p>
+
+    <div class="input-wrap">
+      <input
+        class="code-input"
+        id="code-input"
+        type="text"
+        placeholder="CODE"
+        maxlength="4"
+        autocomplete="off"
+        autocorrect="off"
+        autocapitalize="characters"
+        spellcheck="false"
+        inputmode="text"
+      />
+      <div class="err-msg" id="err-msg"></div>
+    </div>
+
+    <button class="btn btn-patient" id="connect-btn" onclick="connectToCaregiver()">Connect to Carer</button>
+    <div class="connecting-row" id="connecting-row" style="display:none">
+      <div class="spinner"></div>
+      <span>Connecting…</span>
+    </div>
+  </div>
+
+  <!-- Call view -->
+  <div id="v-call" style="display:none">
+    <div style="display:flex; flex-direction:column; align-items:center; gap:22px; width:100%">
+      <div class="status-pill pill-connected">
+        <div class="dot"></div>
+        <span>Carer Connected</span>
+      </div>
+
+      <!-- Call button -->
+      <div class="call-zone" id="call-zone">
+        <div class="call-ring-wrap">
+          <div class="call-ring"></div>
+          <div class="call-ring"></div>
+          <button class="call-btn" id="call-btn" onclick="sendCall()">
+            <div class="call-icon">🆘</div>
+            <div class="call-label">Call Carer</div>
+          </button>
+        </div>
+        <p class="call-hint">Press the button to alert your carer</p>
+      </div>
+
+      <!-- Acknowledged -->
+      <div class="ack-box" id="ack-box" style="display:none">
+        <div class="ack-emoji">✅</div>
+        <div class="ack-title">Help is coming!</div>
+        <p class="ack-body">Your carer has been notified<br>and is on the way to you</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+<div class="footer-note">Both phones need internet for initial connection · Data travels over your local WiFi</div>
+
+<script>
+// ── State ──────────────────────────────────────────────
+let peer = null, conn = null, role = null;
+let isConnected = false, isCalling = false;
+let audioCtx = null, bellTimer = null;
+
+// ── Navigation ─────────────────────────────────────────
+const show = id => {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+};
+
+function selectRole(r) {
+  role = r;
+  unlockAudio();
+  if (r === 'carer') { show('s-carer'); initCarer(); }
+  else               { show('s-patient'); }
+}
+
+function goBack() {
+  cleanup();
+  show('s-welcome');
+}
+
+// ── Audio ──────────────────────────────────────────────
+function unlockAudio() {
+  if (audioCtx) return;
+  try {
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    // Play silent buffer to unlock on iOS
+    const buf = audioCtx.createBuffer(1,1,22050);
+    const src = audioCtx.createBufferSource();
+    src.buffer = buf;
+    src.connect(audioCtx.destination);
+    src.start();
+  } catch(e) {}
+}
+
+function playBell() {
+  try {
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    const ctx = audioCtx;
+    const now = ctx.currentTime;
+    // Rich bell: fundamental + overtones
+    [[880,0.7],[1760,0.35],[2640,0.18],[3520,0.09],[4400,0.05]].forEach(([f, g]) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.frequency.value = f;
+      gain.gain.setValueAtTime(g, now);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + 3);
+      osc.start(now);
+      osc.stop(now + 3);
+    });
+    if (navigator.vibrate) navigator.vibrate([400, 120, 400, 120, 700]);
+  } catch(e) {}
+}
+
+function startBell() { playBell(); bellTimer = setInterval(playBell, 3200); }
+function stopBell()  { clearInterval(bellTimer); bellTimer = null; }
+
+// ── Carer ──────────────────────────────────────────────
+function genCode() {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  return Array.from({length:4}, () => chars[Math.floor(Math.random()*chars.length)]).join('');
+}
+
+function initCarer() {
+  const code = genCode();
+  document.getElementById('carer-code').textContent = code;
+
+  peer = new Peer('carecall-' + code.toLowerCase(), { debug: 0 });
+
+  peer.on('open', () => setCarerPill('waiting'));
+
+  peer.on('connection', c => {
+    conn = c;
+    c.on('open', () => { isConnected = true; setCarerPill('connected'); toast('Patient connected'); });
+    c.on('data', d => { if (d.type === 'call') showCall(); });
+    c.on('close', () => { isConnected = false; setCarerPill('waiting'); hideCall(); toast('Patient disconnected'); });
+    c.on('error', () => toast('Connection error'));
+  });
+
+  peer.on('error', err => {
+    if (err.type === 'unavailable-id') { peer.destroy(); initCarer(); return; }
+    toast('Network error — check your connection');
+  });
+}
+
+function setCarerPill(state) {
+  const el = document.getElementById('carer-pill');
+  const tx = document.getElementById('carer-pill-text');
+  el.className = 'status-pill';
+  if (state === 'waiting')   { el.classList.add('pill-waiting');   tx.textContent = 'Waiting for patient…'; }
+  if (state === 'connected') { el.classList.add('pill-connected'); tx.textContent = 'Patient connected ✓'; }
+  if (state === 'alerting')  { el.classList.add('pill-alerting');  tx.textContent = 'Patient is calling!'; }
+}
+
+function showCall() {
+  document.getElementById('incoming-overlay').classList.add('active');
+  setCarerPill('alerting');
+  startBell();
+}
+
+function hideCall() {
+  document.getElementById('incoming-overlay').classList.remove('active');
+  setCarerPill(isConnected ? 'connected' : 'waiting');
+  stopBell();
+}
+
+function acknowledgeCall() {
+  stopBell();
+  hideCall();
+  if (conn && conn.open) conn.send({ type: 'ack' });
+  toast("Patient notified — you're on the way!");
+}
+
+function copyCode() {
+  const code = document.getElementById('carer-code').textContent;
+  if (navigator.clipboard) navigator.clipboard.writeText(code).then(() => toast('Code copied!'));
+  else toast('Code: ' + code);
+}
+
+// ── Patient ────────────────────────────────────────────
+function connectToCaregiver() {
+  const raw = document.getElementById('code-input').value.trim().toUpperCase();
+  const errEl = document.getElementById('err-msg');
+
+  if (raw.length < 4) { errEl.textContent = 'Please enter the 4-character room code'; return; }
+  errEl.textContent = '';
+
+  unlockAudio();
+  document.getElementById('connect-btn').style.display = 'none';
+  document.getElementById('connecting-row').style.display = 'flex';
+
+  peer = new Peer(undefined, { debug: 0 });
+
+  peer.on('open', () => {
+    conn = peer.connect('carecall-' + raw.toLowerCase(), { reliable: true });
+
+    conn.on('open', () => { isConnected = true; showCallView(); });
+    conn.on('data', d => { if (d.type === 'ack') showAck(); });
+    conn.on('close', () => {
+      isConnected = false; isCalling = false;
+      toast('Lost connection to carer');
+      showConnectView();
+    });
+    conn.on('error', () => {
+      showConnectView();
+      document.getElementById('err-msg').textContent = 'Could not connect — check the code';
+    });
+
+    setTimeout(() => {
+      if (!isConnected) {
+        showConnectView();
+        document.getElementById('err-msg').textContent = 'Timed out — is the carer\'s phone ready?';
+      }
+    }, 12000);
+  });
+
+  peer.on('error', () => {
+    showConnectView();
+    document.getElementById('err-msg').textContent = 'Failed — make sure both phones are online';
+  });
+}
+
+function showCallView() {
+  document.getElementById('v-connect').style.display = 'none';
+  document.getElementById('v-call').style.display = 'block';
+}
+
+function showConnectView() {
+  document.getElementById('connecting-row').style.display = 'none';
+  document.getElementById('connect-btn').style.display = 'flex';
+  document.getElementById('v-connect').style.display = 'block';
+  document.getElementById('v-call').style.display = 'none';
+  isConnected = false; isCalling = false;
+}
+
+function sendCall() {
+  if (!conn || !conn.open) { toast('Not connected to carer'); return; }
+  if (isCalling) return;
+  isCalling = true;
+
+  conn.send({ type: 'call' });
+
+  const btn = document.getElementById('call-btn');
+  btn.classList.add('state-calling');
+  btn.querySelector('.call-icon').textContent = '📞';
+  btn.querySelector('.call-label').textContent = 'Calling…';
+
+  if (navigator.vibrate) navigator.vibrate(250);
+  toast('Alert sent to your carer!');
+}
+
+function showAck() {
+  isCalling = false;
+  document.getElementById('call-zone').style.display = 'none';
+  document.getElementById('ack-box').style.display = 'block';
+  if (navigator.vibrate) navigator.vibrate([100, 80, 100]);
+  // Auto-reset after 10s
+  setTimeout(() => {
+    document.getElementById('call-zone').style.display = 'flex';
+    document.getElementById('ack-box').style.display = 'none';
+    const btn = document.getElementById('call-btn');
+    btn.classList.remove('state-calling');
+    btn.querySelector('.call-icon').textContent = '🆘';
+    btn.querySelector('.call-label').textContent = 'Call Carer';
+    isCalling = false;
+  }, 10000);
+}
+
+// ── Toast ──────────────────────────────────────────────
+function toast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), 3000);
+}
+
+// ── Cleanup ────────────────────────────────────────────
+function cleanup() {
+  stopBell();
+  try { conn && conn.close(); } catch(e) {}
+  try { peer && peer.destroy(); } catch(e) {}
+  conn = peer = null;
+  isConnected = isCalling = false;
+
+  // Reset carer
+  document.getElementById('carer-code').textContent = '····';
+  document.getElementById('incoming-overlay').classList.remove('active');
+
+  // Reset patient
+  document.getElementById('connect-btn').style.display = 'flex';
+  document.getElementById('connecting-row').style.display = 'none';
+  document.getElementById('v-connect').style.display = 'block';
+  document.getElementById('v-call').style.display = 'none';
+  document.getElementById('code-input').value = '';
+  document.getElementById('err-msg').textContent = '';
+  document.getElementById('call-zone').style.display = 'flex';
+  document.getElementById('ack-box').style.display = 'none';
+  const btn = document.getElementById('call-btn');
+  if (btn) {
+    btn.classList.remove('state-calling');
+    btn.querySelector('.call-icon').textContent = '🆘';
+    btn.querySelector('.call-label').textContent = 'Call Carer';
+  }
+}
+
+// ── Input helpers ──────────────────────────────────────
+const inp = document.getElementById('code-input');
+inp.addEventListener('input', e => { e.target.value = e.target.value.toUpperCase(); });
+inp.addEventListener('keypress', e => { if (e.key === 'Enter') connectToCaregiver(); });
+</script>
+</body>
+</html>

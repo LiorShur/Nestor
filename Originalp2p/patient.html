@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>CareCall — Patient</title>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,600;1,9..144,300&family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
+<script>
+/* ══════════════════════════════════════════════
+   CONFIGURATION — edit ONE line
+   Replace with your computer's local IP address
+   (shown in the terminal when server.py starts)
+   ══════════════════════════════════════════════ */
+const SERVER_IP = '192.168.1.23';
+/* ══════════════════════════════════════════════ */
+</script>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { height: 100%; height: -webkit-fill-available; }
+body {
+  height: 100%; min-height: -webkit-fill-available;
+  overflow: hidden; -webkit-font-smoothing: antialiased;
+  font-family: 'Outfit', sans-serif;
+  background: #FAF6F0; color: #2C1A0E;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  position: relative;
+}
+body::before {
+  content: ''; position: absolute; inset: 0; pointer-events: none;
+  background: radial-gradient(circle at 30% 20%, rgba(200,82,26,0.06) 0%, transparent 50%),
+              radial-gradient(circle at 75% 80%, rgba(200,82,26,0.04) 0%, transparent 45%);
+}
+
+/* ── Wordmark ── */
+.wordmark {
+  position: absolute; top: 28px; left: 0; right: 0; text-align: center;
+  font-family: 'Fraunces', serif; font-size: 1.05rem; font-weight: 300;
+  color: #A08060; letter-spacing: 1px;
+}
+.wordmark em { font-style: italic; }
+
+/* ── Status pill ── */
+.pill-bar { position: absolute; top: 62px; left: 0; right: 0; display: flex; justify-content: center; }
+.pill {
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 6px 16px; border-radius: 100px;
+  font-size: 0.74rem; font-weight: 600; letter-spacing: 0.3px; transition: all 0.4s;
+}
+.pill-linking { background: rgba(100,116,139,0.1); color: #94A3B8; }
+.pill-offline { background: rgba(217,119,6,0.12);  color: #D97706; }
+.pill-live    { background: rgba(52,211,153,0.12);  color: #10B981; }
+.pdot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+.pill-linking .pdot { background: #94A3B8; animation: blink .8s infinite; }
+.pill-offline .pdot { background: #D97706; animation: blink 1.4s infinite; }
+.pill-live    .pdot { background: #10B981; }
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.2} }
+
+/* ── Splash ── */
+#splash {
+  position: fixed; inset: 0; z-index: 50;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 32px;
+  background: #FAF6F0;
+  transition: opacity 0.4s;
+}
+#splash.gone { opacity: 0; pointer-events: none; }
+.splash-logo { font-family: 'Fraunces', serif; font-size: 2.8rem; font-weight: 600; color: #2C1A0E; }
+.splash-logo em { color: #C8521A; font-style: italic; }
+.splash-role { font-size: 0.78rem; letter-spacing: 3px; text-transform: uppercase; color: #C8521A; margin-top: -20px; }
+.splash-btn {
+  width: 170px; height: 170px; border-radius: 50%; border: none;
+  background: #C8521A; cursor: pointer;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px;
+  box-shadow: 0 12px 50px rgba(200,82,26,0.35);
+  animation: sbreathe 3s ease-in-out infinite;
+  -webkit-tap-highlight-color: transparent;
+  font-family: 'Outfit', sans-serif;
+  transition: transform .15s cubic-bezier(.34,1.56,.64,1);
+}
+.splash-btn:active { transform: scale(0.93); }
+@keyframes sbreathe {
+  0%,100%{box-shadow:0 12px 50px rgba(200,82,26,0.35)}
+  50%{box-shadow:0 16px 60px rgba(200,82,26,0.55)}
+}
+.splash-icon  { font-size: 4rem; line-height: 1; }
+.splash-label { font-size: 0.72rem; font-weight: 700; letter-spacing: 2.5px; text-transform: uppercase; color: rgba(255,255,255,0.85); }
+.splash-hint  { font-size: 0.78rem; color: #A08060; }
+
+/* ── Ring + Call button ── */
+.ring-wrap { position: relative; width: 260px; height: 260px; }
+.ring { position: absolute; border-radius: 50%; border: 1.5px solid rgba(200,82,26,0.14); animation: breathe 4s ease-in-out infinite; pointer-events: none; }
+.ring-1 { inset: -24px; }
+.ring-2 { inset: -44px; animation-delay: .7s; border-color: rgba(200,82,26,0.07); }
+.ring-3 { inset: -66px; animation-delay: 1.4s; border-color: rgba(200,82,26,0.04); }
+@keyframes breathe { 0%,100%{transform:scale(1);opacity:.9} 50%{transform:scale(1.04);opacity:.4} }
+
+.call-btn {
+  position: absolute; inset: 0; border-radius: 50%; border: none; background: #C8521A;
+  cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px;
+  -webkit-tap-highlight-color: transparent;
+  box-shadow: 0 12px 50px rgba(200,82,26,0.28), 0 3px 12px rgba(0,0,0,0.15), inset 0 1px 0 rgba(255,255,255,0.15);
+  transition: transform .15s cubic-bezier(.34,1.56,.64,1), box-shadow .2s, background .3s, opacity .3s;
+}
+.call-btn:active:not(.calling):not(.offline) { transform: scale(0.93); }
+.call-btn.calling { background: #B91C1C; animation: throb 1s ease-in-out infinite; cursor: default; }
+@keyframes throb { 0%,100%{box-shadow:0 0 0 0 rgba(185,28,28,0.45)} 50%{box-shadow:0 0 0 32px rgba(185,28,28,0)} }
+.call-btn.offline { opacity: .35; cursor: not-allowed; box-shadow: none; background: #8B6B4A; }
+.btn-icon  { font-size: 4.5rem; line-height: 1; }
+.btn-label { font-size: .72rem; font-weight: 700; letter-spacing: 3px; text-transform: uppercase; color: rgba(255,255,255,.85); }
+
+/* ── Ack overlay ── */
+.ack {
+  position: fixed; inset: 0; background: #ECFDF5;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px;
+  opacity: 0; pointer-events: none; transition: opacity .4s; z-index: 10;
+}
+.ack.show { opacity: 1; pointer-events: all; }
+.ack-icon  { font-size: 5.5rem; animation: pop .5s cubic-bezier(.34,1.56,.64,1); }
+@keyframes pop { from{transform:scale(.4)} to{transform:scale(1)} }
+.ack-title { font-family:'Fraunces',serif; font-size:2.8rem; color:#059669; font-weight:600; text-align:center; line-height:1.15; }
+.ack-sub   { color:#6EE7B7; font-size:.95rem; }
+
+.footer { position:absolute; bottom:24px; font-size:.72rem; color:#A08060; opacity:.5; font-family:'Fraunces',serif; font-style:italic; }
+
+/* ── Toast ── */
+.toast {
+  position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%) translateY(80px);
+  background: rgba(44,26,14,0.9); color: #FAF6F0;
+  border-radius: 14px; padding: 12px 22px; font-size: .84rem;
+  white-space: nowrap; z-index: 400; transition: transform .3s cubic-bezier(.4,0,.2,1);
+  pointer-events: none;
+}
+.toast.show { transform: translateX(-50%) translateY(0); }
+</style>
+</head>
+<body>
+
+<!-- Splash -->
+<div id="splash">
+  <div class="splash-logo">Care<em>Call</em></div>
+  <div class="splash-role">Patient</div>
+  <button class="splash-btn" onclick="startApp()">
+    <div class="splash-icon">🛏️</div>
+    <div class="splash-label">Tap to Start</div>
+  </button>
+  <div class="splash-hint">Both phones must be on the same WiFi</div>
+</div>
+
+<!-- Main UI -->
+<div class="wordmark">Care<em>Call</em></div>
+<div class="pill-bar">
+  <div class="pill pill-linking" id="pill">
+    <div class="pdot"></div><span id="pill-txt">Connecting…</span>
+  </div>
+</div>
+
+<div class="ring-wrap">
+  <div class="ring ring-1"></div>
+  <div class="ring ring-2"></div>
+  <div class="ring ring-3"></div>
+  <button class="call-btn offline" id="btn" onclick="doCall()">
+    <div class="btn-icon" id="btn-icon">🛏️</div>
+    <div class="btn-label" id="btn-label">Not Ready</div>
+  </button>
+</div>
+
+<div class="ack" id="ack">
+  <div class="ack-icon">✅</div>
+  <div class="ack-title">Help is<br>on the way</div>
+  <div class="ack-sub">Your carer is coming to you</div>
+</div>
+
+<div class="footer">always here</div>
+<div class="toast" id="toast"></div>
+
+<script>
+const WS_URL = 'ws://' + SERVER_IP + ':8765';
+let ws = null;
+let carerOnline = false;
+let isCalling   = false;
+let started     = false;
+let reconnTimer = null;
+
+// ── UI helpers ─────────────────────────────────
+function setPill(cls, txt) {
+  const el = document.getElementById('pill');
+  el.className = 'pill ' + cls;
+  document.getElementById('pill-txt').textContent = txt;
+}
+function setBtn(state) {
+  const btn = document.getElementById('btn');
+  btn.className = 'call-btn' + (state==='offline'?' offline': state==='calling'?' calling':'');
+  document.getElementById('btn-icon').textContent  = state==='calling'?'📞':'🆘';
+  document.getElementById('btn-label').textContent = state==='calling'?'Calling…': state==='offline'?'Not Ready':'Call Carer';
+}
+function toast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg; el.classList.add('show');
+  clearTimeout(el._t); el._t = setTimeout(()=>el.classList.remove('show'), 3000);
+}
+
+// ── Audio ──────────────────────────────────────
+let audioCtx = null;
+function unlockAudio() {
+  if (audioCtx) return;
+  try {
+    audioCtx = new (window.AudioContext||window.webkitAudioContext)();
+    const b=audioCtx.createBuffer(1,1,22050),s=audioCtx.createBufferSource();
+    s.buffer=b; s.connect(audioCtx.destination); s.start();
+  } catch(e){}
+}
+
+// ── WebSocket ──────────────────────────────────
+function connect() {
+  clearTimeout(reconnTimer);
+  if (ws) { try { ws.close(); } catch(e){} ws = null; }
+
+  ws = new WebSocket(WS_URL);
+
+  ws.onopen = () => {
+    ws.send(JSON.stringify({ role: 'patient' }));
+    setPill('pill-linking', 'Reaching carer…');
+  };
+
+  ws.onmessage = (evt) => {
+    let d;
+    try { d = JSON.parse(evt.data); } catch(e) { return; }
+
+    if (d.type === 'peer-online') {
+      carerOnline = true; isCalling = false;
+      setBtn('ready');
+      setPill('pill-live', 'Carer connected');
+    }
+    if (d.type === 'peer-offline') {
+      carerOnline = false; isCalling = false;
+      setBtn('offline');
+      setPill('pill-offline', 'Carer disconnected');
+    }
+    if (d.type === 'ack') {
+      isCalling = false; setBtn('ready');
+      document.getElementById('ack').classList.add('show');
+      if (navigator.vibrate) navigator.vibrate([80,60,80]);
+      setTimeout(()=>document.getElementById('ack').classList.remove('show'), 8000);
+    }
+  };
+
+  ws.onclose = () => {
+    carerOnline = false; isCalling = false;
+    setBtn('offline');
+    setPill('pill-offline', 'Reconnecting…');
+    // Reconnect immediately — WebSocket on local WiFi is fast
+    reconnTimer = setTimeout(connect, 1000);
+  };
+
+  ws.onerror = () => {
+    // onclose will fire right after — let it handle the retry
+  };
+}
+
+// ── Call button ────────────────────────────────
+function doCall() {
+  if (!carerOnline || isCalling || !ws || ws.readyState !== WebSocket.OPEN) return;
+  isCalling = true;
+  ws.send(JSON.stringify({ type: 'call' }));
+  setBtn('calling');
+  if (navigator.vibrate) navigator.vibrate(200);
+}
+
+// ── Start (must be inside user gesture for iOS) ─
+function startApp() {
+  unlockAudio();
+  document.getElementById('splash').classList.add('gone');
+  started = true;
+  connect();
+}
+
+// ── Re-connect on wake / network return ────────
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible' && started) {
+    clearTimeout(reconnTimer);
+    connect();
+  }
+});
+window.addEventListener('online', () => {
+  if (started) { clearTimeout(reconnTimer); reconnTimer = setTimeout(connect, 800); }
+});
+</script>
+</body>
+</html>

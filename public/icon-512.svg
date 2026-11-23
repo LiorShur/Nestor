@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <rect width="512" height="512" rx="102" fill="#0D1520"/>
+  <!-- Safe zone background circle -->
+  <circle cx="256" cy="256" r="194" fill="#162032"/>
+  <!-- Bell body -->
+  <path d="M256 112 C179 112 122 174 122 256 L122 307 L107 322 L404 322 L389 307 L389 256 C389 174 332 112 256 112 Z"
+    fill="#0EA5E9"/>
+  <!-- Bell clapper -->
+  <circle cx="256" cy="348" r="28" fill="#0EA5E9"/>
+  <!-- Top knob -->
+  <circle cx="256" cy="102" r="17" fill="#38BDF8"/>
+</svg>

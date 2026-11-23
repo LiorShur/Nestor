@@ -1,0 +1,762 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>CareCall</title>
+<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,700&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0D1520;
+    --surface: #182232;
+    --surface2: #1F2F42;
+    --patient: #FF6B35;
+    --patient-dim: rgba(255,107,53,0.15);
+    --carer: #38BDF8;
+    --carer-dim: rgba(56,189,248,0.15);
+    --success: #34D399;
+    --success-dim: rgba(52,211,153,0.15);
+    --danger: #F87171;
+    --warn: #FBBF24;
+    --warn-dim: rgba(251,191,36,0.12);
+    --text: #F1F5F9;
+    --text-dim: #64748B;
+    --text-mid: #94A3B8;
+  }
+
+  html, body { height: 100%; background: var(--bg); color: var(--text); font-family: 'DM Sans', sans-serif; overflow: hidden; -webkit-font-smoothing: antialiased; }
+
+  .screen { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 28px 24px; opacity: 0; pointer-events: none; transition: opacity 0.35s cubic-bezier(.4,0,.2,1); overflow-y: auto; }
+  .screen.active { opacity: 1; pointer-events: all; }
+
+  /* ── WELCOME ── */
+  .app-logo { font-family: 'DM Serif Display', serif; font-size: 3rem; letter-spacing: -1.5px; line-height: 1; margin-bottom: 6px; }
+  .app-logo em { color: var(--carer); font-style: normal; }
+  .app-tagline { color: var(--text-dim); font-size: 0.875rem; font-weight: 300; margin-bottom: 32px; letter-spacing: 0.3px; }
+
+  /* ── SAVED PAIR CARD ── */
+  .saved-card {
+    width: 100%; max-width: 380px;
+    background: linear-gradient(135deg, rgba(56,189,248,0.08), rgba(255,107,53,0.08));
+    border: 1.5px solid rgba(255,255,255,0.1);
+    border-radius: 22px;
+    padding: 18px 20px;
+    margin-bottom: 18px;
+    position: relative;
+  }
+  .saved-label {
+    display: flex; align-items: center; gap: 7px;
+    font-size: 0.7rem; letter-spacing: 2.5px; text-transform: uppercase;
+    color: var(--warn); margin-bottom: 14px; font-weight: 600;
+  }
+  .saved-pair-row {
+    display: flex; align-items: center; gap: 12px; margin-bottom: 14px;
+  }
+  .saved-avatar {
+    width: 46px; height: 46px; border-radius: 13px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.5rem; flex-shrink: 0;
+  }
+  .saved-info h4 { font-size: 0.95rem; font-weight: 600; margin-bottom: 2px; }
+  .saved-info p  { font-size: 0.77rem; color: var(--text-dim); }
+  .saved-code-badge {
+    background: var(--surface); border-radius: 9px;
+    padding: 4px 10px; font-size: 0.78rem; font-family: 'DM Serif Display', serif;
+    letter-spacing: 3px; color: var(--carer); display: inline-block; margin-top: 3px;
+  }
+  .saved-btn-row { display: flex; gap: 8px; }
+  .sbtn {
+    flex: 1; padding: 13px 10px; border: none; border-radius: 13px;
+    font-family: 'DM Sans', sans-serif; font-size: 0.84rem; font-weight: 600;
+    cursor: pointer; transition: transform 0.12s, opacity 0.12s;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .sbtn:active { transform: scale(0.96); }
+  .sbtn-patient { background: var(--patient); color: white; }
+  .sbtn-carer   { background: var(--carer); color: #0D1520; }
+  .sbtn-forget  { background: var(--surface2); color: var(--text-dim); flex: 0 0 auto; padding: 13px 14px; font-size: 0.8rem; }
+
+  .divider { display: flex; align-items: center; gap: 12px; width: 100%; max-width: 380px; margin-bottom: 14px; }
+  .divider-line { flex: 1; height: 1px; background: var(--surface2); }
+  .divider-text { color: var(--text-dim); font-size: 0.75rem; }
+
+  .role-grid { width: 100%; max-width: 380px; display: flex; flex-direction: column; gap: 12px; }
+  .role-card { background: var(--surface); border-radius: 22px; padding: 20px 22px; cursor: pointer; border: 2px solid transparent; display: flex; align-items: center; gap: 16px; transition: transform 0.15s ease, background 0.15s; -webkit-tap-highlight-color: transparent; user-select: none; }
+  .role-card:active { transform: scale(0.97); background: var(--surface2); }
+  .role-card.patient { border-color: var(--patient); }
+  .role-card.carer { border-color: var(--carer); }
+  .role-emoji { font-size: 2rem; width: 52px; height: 52px; border-radius: 14px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .patient .role-emoji { background: var(--patient-dim); }
+  .carer .role-emoji { background: var(--carer-dim); }
+  .role-text h3 { font-size: 1.05rem; font-weight: 600; margin-bottom: 2px; }
+  .patient .role-text h3 { color: var(--patient); }
+  .carer .role-text h3 { color: var(--carer); }
+  .role-text p { font-size: 0.78rem; color: var(--text-dim); line-height: 1.4; }
+
+  /* ── BACK ── */
+  .back-btn { position: fixed; top: 18px; left: 18px; background: var(--surface); border: none; border-radius: 12px; padding: 10px 18px; color: var(--text-mid); font-family: 'DM Sans', sans-serif; font-size: 0.82rem; cursor: pointer; -webkit-tap-highlight-color: transparent; z-index: 50; transition: background 0.15s; }
+  .back-btn:active { background: var(--surface2); }
+
+  /* ── SECTION HEADER ── */
+  .section-title { font-family: 'DM Serif Display', serif; font-size: 2rem; margin-bottom: 6px; text-align: center; }
+  .section-sub { color: var(--text-dim); font-size: 0.875rem; text-align: center; margin-bottom: 28px; }
+
+  /* ── STATUS PILL ── */
+  .status-pill { display: inline-flex; align-items: center; gap: 8px; padding: 8px 18px; border-radius: 100px; font-size: 0.8rem; font-weight: 500; margin-bottom: 22px; letter-spacing: 0.2px; }
+  .dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+  .pill-waiting { background: rgba(100,116,139,0.15); color: var(--text-dim); }
+  .pill-waiting .dot { background: var(--text-dim); }
+  .pill-connected { background: var(--success-dim); color: var(--success); }
+  .pill-connected .dot { background: var(--success); animation: blink 2s infinite; }
+  .pill-alerting { background: rgba(248,113,113,0.15); color: var(--danger); }
+  .pill-alerting .dot { background: var(--danger); animation: blink 0.6s infinite; }
+  @keyframes blink { 0%,100% { opacity:1; transform:scale(1); } 50% { opacity:0.4; transform:scale(0.7); } }
+
+  /* ── CARER CODE CARD ── */
+  .code-card { background: var(--surface); border-radius: 22px; padding: 24px 36px; text-align: center; width: 100%; max-width: 320px; margin-bottom: 14px; }
+  .code-card-label { font-size: 0.72rem; letter-spacing: 3px; text-transform: uppercase; color: var(--text-dim); margin-bottom: 12px; }
+  .code-display { font-family: 'DM Serif Display', serif; font-size: 3.2rem; letter-spacing: 10px; color: var(--carer); line-height: 1; }
+  .code-hint { font-size: 0.75rem; color: var(--text-dim); margin-top: 10px; }
+  .code-saved-badge { display: inline-flex; align-items: center; gap: 5px; background: var(--warn-dim); border: 1px solid rgba(251,191,36,0.25); border-radius: 8px; padding: 4px 10px; font-size: 0.72rem; color: var(--warn); margin-top: 10px; }
+
+  /* ── BUTTONS ── */
+  .btn { width: 100%; max-width: 320px; padding: 16px 24px; border: none; border-radius: 16px; font-family: 'DM Sans', sans-serif; font-size: 0.95rem; font-weight: 600; cursor: pointer; transition: transform 0.12s ease; -webkit-tap-highlight-color: transparent; letter-spacing: 0.3px; display: flex; align-items: center; justify-content: center; gap: 8px; margin-bottom: 10px; }
+  .btn:active { transform: scale(0.97); }
+  .btn-carer { background: var(--carer); color: #0D1520; }
+  .btn-patient { background: var(--patient); color: white; }
+  .btn-ghost { background: var(--surface); color: var(--text-mid); }
+  .btn-warn  { background: var(--warn-dim); color: var(--warn); border: 1px solid rgba(251,191,36,0.25); }
+
+  /* ── INCOMING OVERLAY ── */
+  .incoming-overlay { position: fixed; inset: 0; background: rgba(8,12,18,0.97); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px; z-index: 200; padding: 36px 28px; opacity: 0; pointer-events: none; transition: opacity 0.3s ease; }
+  .incoming-overlay.active { opacity: 1; pointer-events: all; }
+  .bell-ring { font-size: 6rem; animation: ring 0.45s ease-in-out infinite alternate; filter: drop-shadow(0 0 30px rgba(56,189,248,0.4)); line-height: 1; }
+  @keyframes ring { from { transform: rotate(-28deg); } to { transform: rotate(28deg); } }
+  .incoming-title { font-family: 'DM Serif Display', serif; font-size: 2.6rem; color: var(--danger); text-align: center; line-height: 1.1; }
+  .incoming-sub { color: var(--text-mid); font-size: 0.9rem; text-align: center; }
+  .incoming-pulse { position: absolute; inset: 0; animation: screen-pulse 0.8s ease-in-out infinite alternate; pointer-events: none; }
+  @keyframes screen-pulse { from { background: transparent; } to { background: rgba(248,113,113,0.04); } }
+  .btn-answer { background: var(--success); color: #0D1520; border: none; border-radius: 100px; padding: 22px 40px; font-family: 'DM Sans', sans-serif; font-size: 1.1rem; font-weight: 700; cursor: pointer; -webkit-tap-highlight-color: transparent; transition: transform 0.12s; letter-spacing: 0.3px; width: 100%; max-width: 300px; }
+  .btn-answer:active { transform: scale(0.97); }
+
+  /* ── PATIENT INPUT ── */
+  .code-input { width: 100%; background: var(--surface); border: 2px solid var(--surface2); border-radius: 18px; padding: 20px; font-size: 2rem; font-family: 'DM Serif Display', serif; letter-spacing: 8px; color: var(--text); text-align: center; outline: none; -webkit-appearance: none; transition: border-color 0.2s; caret-color: var(--patient); }
+  .code-input:focus { border-color: var(--patient); }
+  .code-input::placeholder { color: var(--surface2); letter-spacing: 4px; font-size: 1.4rem; }
+  .input-wrap { width: 100%; max-width: 320px; margin-bottom: 12px; }
+  .err-msg { color: var(--danger); font-size: 0.8rem; text-align: center; margin-top: 8px; min-height: 20px; }
+
+  /* ── CALL BUTTON ── */
+  .call-zone { display: flex; flex-direction: column; align-items: center; gap: 20px; width: 100%; }
+  .call-ring-wrap { position: relative; width: 210px; height: 210px; }
+  .call-ring { position: absolute; inset: -20px; border-radius: 50%; border: 2px solid rgba(255,107,53,0.25); animation: ring-breathe 3s ease-in-out infinite; }
+  .call-ring:nth-child(2) { inset: -36px; border-color: rgba(255,107,53,0.12); animation-delay: 0.5s; }
+  @keyframes ring-breathe { 0%,100% { transform:scale(1); opacity:0.7; } 50% { transform:scale(1.06); opacity:0.2; } }
+  .call-btn { position: absolute; inset: 0; border-radius: 50%; border: none; background: var(--patient); cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; -webkit-tap-highlight-color: transparent; transition: transform 0.12s ease, background 0.25s; box-shadow: 0 8px 40px rgba(255,107,53,0.35), 0 2px 8px rgba(0,0,0,0.4); }
+  .call-btn:active { transform: scale(0.94); }
+  .call-btn.state-calling { background: var(--danger); animation: call-throb 0.9s ease-in-out infinite; }
+  @keyframes call-throb { 0%,100% { box-shadow: 0 0 0 0 rgba(248,113,113,0.5); } 50% { box-shadow: 0 0 0 28px rgba(248,113,113,0); } }
+  .call-icon { font-size: 3.6rem; line-height: 1; }
+  .call-label { font-size: 0.75rem; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: white; }
+  .call-hint { color: var(--text-dim); font-size: 0.8rem; text-align: center; }
+
+  /* ── ACK ── */
+  .ack-box { background: var(--success-dim); border: 1px solid rgba(52,211,153,0.3); border-radius: 20px; padding: 26px 30px; text-align: center; max-width: 300px; width: 100%; }
+  .ack-emoji { font-size: 2.8rem; margin-bottom: 10px; }
+  .ack-title { color: var(--success); font-size: 1.3rem; font-weight: 700; margin-bottom: 6px; }
+  .ack-body { color: var(--text-mid); font-size: 0.85rem; line-height: 1.5; }
+
+  /* ── SAVE PROMPT ── */
+  .save-prompt { background: var(--warn-dim); border: 1.5px solid rgba(251,191,36,0.25); border-radius: 18px; padding: 18px 20px; max-width: 320px; width: 100%; margin-top: 4px; }
+  .save-prompt p { font-size: 0.83rem; color: var(--warn); margin-bottom: 12px; text-align: center; font-weight: 500; }
+  .save-row { display: flex; gap: 8px; }
+  .save-row button { flex: 1; padding: 12px 8px; border: none; border-radius: 12px; font-family: 'DM Sans', sans-serif; font-size: 0.84rem; font-weight: 600; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+  .save-row button:active { transform: scale(0.97); }
+  .save-yes { background: var(--warn); color: #0D1520; }
+  .save-no  { background: var(--surface2); color: var(--text-dim); }
+
+  /* ── SPINNER ── */
+  .spinner { width: 20px; height: 20px; border: 2.5px solid rgba(255,255,255,0.12); border-top-color: var(--carer); border-radius: 50%; animation: spin 0.75s linear infinite; flex-shrink: 0; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .connecting-row { display: flex; align-items: center; gap: 12px; color: var(--text-dim); font-size: 0.9rem; margin-top: 14px; }
+
+  /* ── TOAST ── */
+  .toast { position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%) translateY(70px); background: var(--surface2); color: var(--text-mid); border-radius: 14px; padding: 12px 22px; font-size: 0.84rem; white-space: nowrap; z-index: 300; transition: transform 0.3s cubic-bezier(.4,0,.2,1); pointer-events: none; box-shadow: 0 4px 20px rgba(0,0,0,0.4); }
+  .toast.show { transform: translateX(-50%) translateY(0); }
+
+  .footer-note { position: fixed; bottom: 0; left: 0; right: 0; text-align: center; padding: 12px; font-size: 0.68rem; color: rgba(255,255,255,0.1); pointer-events: none; }
+
+  /* Auto-connect overlay */
+  .auto-overlay { position: fixed; inset: 0; background: var(--bg); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px; z-index: 400; padding: 36px; opacity: 0; pointer-events: none; transition: opacity 0.3s; }
+  .auto-overlay.active { opacity: 1; pointer-events: all; }
+  .auto-icon { font-size: 4rem; }
+  .auto-title { font-family: 'DM Serif Display', serif; font-size: 1.8rem; text-align: center; }
+  .auto-sub { color: var(--text-dim); font-size: 0.85rem; text-align: center; }
+  .auto-spinner { width: 36px; height: 36px; border: 3px solid rgba(255,255,255,0.1); border-top-color: var(--carer); border-radius: 50%; animation: spin 0.75s linear infinite; }
+</style>
+</head>
+<body>
+
+<!-- ══ SCREEN: WELCOME ══ -->
+<div class="screen active" id="s-welcome">
+  <div class="app-logo">Care<em>Call</em></div>
+  <p class="app-tagline">Simple care alerts over your home WiFi</p>
+
+  <!-- Saved pair card (shown if a pair is stored) -->
+  <div class="saved-card" id="saved-card" style="display:none">
+    <div class="saved-label">⭐ Saved Pair</div>
+    <div class="saved-pair-row">
+      <div class="saved-avatar" style="background:var(--carer-dim)">🔔</div>
+      <div class="saved-info">
+        <h4 style="color:var(--carer)">Carer</h4>
+        <p>Room code</p>
+        <div class="saved-code-badge" id="saved-code-display">····</div>
+      </div>
+      <div style="font-size:1.5rem; margin: 0 4px">↔️</div>
+      <div class="saved-avatar" style="background:var(--patient-dim)">🛏️</div>
+      <div class="saved-info">
+        <h4 style="color:var(--patient)">Patient</h4>
+        <p>Ready to connect</p>
+      </div>
+    </div>
+    <div class="saved-btn-row">
+      <button class="sbtn sbtn-patient" onclick="quickConnect('patient')">🛏️ I'm the Patient</button>
+      <button class="sbtn sbtn-carer" onclick="quickConnect('carer')">🔔 I'm the Carer</button>
+      <button class="sbtn sbtn-forget" onclick="forgetPair()">✕</button>
+    </div>
+  </div>
+
+  <!-- Divider shown only if saved pair exists -->
+  <div class="divider" id="divider" style="display:none">
+    <div class="divider-line"></div>
+    <div class="divider-text">or start fresh</div>
+    <div class="divider-line"></div>
+  </div>
+
+  <div class="role-grid">
+    <div class="role-card patient" onclick="selectRole('patient')">
+      <div class="role-emoji">🛏️</div>
+      <div class="role-text">
+        <h3>I'm the Patient</h3>
+        <p>One tap to call your carer from anywhere in the home</p>
+      </div>
+    </div>
+    <div class="role-card carer" onclick="selectRole('carer')">
+      <div class="role-emoji">🔔</div>
+      <div class="role-text">
+        <h3>I'm the Carer</h3>
+        <p>Get instant alerts when the patient needs help</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ SCREEN: CARER ══ -->
+<div class="screen" id="s-carer">
+  <button class="back-btn" onclick="goBack()">← Back</button>
+
+  <div class="section-title">Carer Mode</div>
+  <p class="section-sub" id="carer-sub">Share this code with the patient's phone</p>
+
+  <div class="code-card">
+    <div class="code-card-label">Room Code</div>
+    <div class="code-display" id="carer-code">····</div>
+    <div class="code-hint">Patient enters this to connect</div>
+    <div class="code-saved-badge" id="code-saved-badge" style="display:none">⭐ Saved code — patient will auto-connect</div>
+  </div>
+
+  <div class="status-pill pill-waiting" id="carer-pill">
+    <div class="dot"></div>
+    <span id="carer-pill-text">Waiting for patient…</span>
+  </div>
+
+  <button class="btn btn-ghost" onclick="copyCode()" style="margin-bottom:8px">📋 Copy Code</button>
+  <button class="btn btn-warn" id="save-pair-btn" onclick="savePairFromCarer()" style="display:none">⭐ Save this pair</button>
+  <button class="btn btn-ghost" id="forget-pair-btn" onclick="forgetPairFromScreen()" style="display:none; margin-top:2px; font-size:0.8rem">✕ Forget saved pair</button>
+
+  <!-- Incoming call overlay -->
+  <div class="incoming-overlay" id="incoming-overlay">
+    <div class="incoming-pulse"></div>
+    <div class="bell-ring">🔔</div>
+    <div class="incoming-title">Patient<br>Calling!</div>
+    <p class="incoming-sub">Your patient needs assistance right now</p>
+    <button class="btn-answer" onclick="acknowledgeCall()">✓ &nbsp;I'm on my way</button>
+  </div>
+</div>
+
+<!-- ══ SCREEN: PATIENT ══ -->
+<div class="screen" id="s-patient">
+  <button class="back-btn" onclick="goBack()">← Back</button>
+
+  <!-- Connect view -->
+  <div id="v-connect">
+    <div class="section-title">Patient Mode</div>
+    <p class="section-sub">Enter the code shown on the carer's phone</p>
+
+    <div class="input-wrap">
+      <input class="code-input" id="code-input" type="text" placeholder="CODE" maxlength="4"
+        autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false" inputmode="text"/>
+      <div class="err-msg" id="err-msg"></div>
+    </div>
+    <button class="btn btn-patient" id="connect-btn" onclick="connectToCaregiver()">Connect to Carer</button>
+    <div class="connecting-row" id="connecting-row" style="display:none">
+      <div class="spinner"></div><span>Connecting…</span>
+    </div>
+  </div>
+
+  <!-- Call view -->
+  <div id="v-call" style="display:none">
+    <div style="display:flex; flex-direction:column; align-items:center; gap:18px; width:100%">
+      <div class="status-pill pill-connected">
+        <div class="dot"></div><span>Carer Connected</span>
+      </div>
+
+      <div class="call-zone" id="call-zone">
+        <div class="call-ring-wrap">
+          <div class="call-ring"></div>
+          <div class="call-ring"></div>
+          <button class="call-btn" id="call-btn" onclick="sendCall()">
+            <div class="call-icon">🆘</div>
+            <div class="call-label">Call Carer</div>
+          </button>
+        </div>
+        <p class="call-hint">Press the button to alert your carer</p>
+      </div>
+
+      <div class="ack-box" id="ack-box" style="display:none">
+        <div class="ack-emoji">✅</div>
+        <div class="ack-title">Help is coming!</div>
+        <p class="ack-body">Your carer has been notified<br>and is on the way to you</p>
+      </div>
+
+      <!-- Save pair prompt (shown after first successful connect if not already saved) -->
+      <div class="save-prompt" id="save-prompt" style="display:none">
+        <p>💾 Save this carer–patient pair for instant reconnect next time?</p>
+        <div class="save-row">
+          <button class="save-yes" onclick="savePairFromPatient()">⭐ Save it</button>
+          <button class="save-no" onclick="dismissSavePrompt()">Not now</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Auto-connect loading overlay -->
+<div class="auto-overlay" id="auto-overlay">
+  <div class="auto-icon">🔗</div>
+  <div class="auto-title">Reconnecting…</div>
+  <p class="auto-sub" id="auto-sub">Connecting to your saved pair</p>
+  <div class="auto-spinner"></div>
+  <button class="btn btn-ghost" style="max-width:200px; margin-top:12px" onclick="cancelAutoConnect()">Cancel</button>
+</div>
+
+<div class="toast" id="toast"></div>
+<div class="footer-note">Both phones need internet briefly for pairing · Data travels over your local WiFi</div>
+
+<script>
+// ── Persistence helpers ────────────────────────────────
+const STORAGE_KEY = 'carecall_saved_pair';
+
+function loadPair() {
+  try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || null; } catch(e) { return null; }
+}
+function savePair(code) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify({ code, saved: Date.now() }));
+}
+function clearPair() {
+  localStorage.removeItem(STORAGE_KEY);
+}
+
+// ── State ──────────────────────────────────────────────
+let peer = null, conn = null, role = null;
+let isConnected = false, isCalling = false;
+let audioCtx = null, bellTimer = null;
+let savedCode = null, autoConnecting = false;
+let savePromptShown = false;
+
+// ── Boot ───────────────────────────────────────────────
+(function init() {
+  const pair = loadPair();
+  if (pair && pair.code) {
+    savedCode = pair.code;
+    document.getElementById('saved-code-display').textContent = pair.code;
+    document.getElementById('saved-card').style.display = 'block';
+    document.getElementById('divider').style.display = 'flex';
+  }
+})();
+
+// ── Navigation ─────────────────────────────────────────
+const show = id => {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+};
+
+function selectRole(r) {
+  role = r;
+  unlockAudio();
+  if (r === 'carer') { show('s-carer'); initCarer(false); }
+  else               { show('s-patient'); }
+}
+
+function goBack() {
+  cleanup();
+  show('s-welcome');
+}
+
+// ── Quick connect from saved pair ──────────────────────
+function quickConnect(r) {
+  if (!savedCode) return;
+  role = r;
+  unlockAudio();
+  if (r === 'carer') {
+    show('s-carer');
+    initCarer(true); // true = use saved code
+  } else {
+    // Patient auto-connect
+    show('s-patient');
+    startAutoConnect();
+  }
+}
+
+function startAutoConnect() {
+  document.getElementById('auto-sub').textContent = 'Connecting to carer code ' + savedCode + '…';
+  document.getElementById('auto-overlay').classList.add('active');
+  autoConnecting = true;
+  doPatientConnect(savedCode, true);
+}
+
+function cancelAutoConnect() {
+  autoConnecting = false;
+  document.getElementById('auto-overlay').classList.remove('active');
+  cleanup();
+  show('s-welcome');
+}
+
+// ── Audio ──────────────────────────────────────────────
+function unlockAudio() {
+  if (audioCtx) return;
+  try {
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const buf = audioCtx.createBuffer(1,1,22050);
+    const src = audioCtx.createBufferSource();
+    src.buffer = buf; src.connect(audioCtx.destination); src.start();
+  } catch(e) {}
+}
+
+function playBell() {
+  try {
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    const ctx = audioCtx, now = ctx.currentTime;
+    [[880,0.7],[1760,0.35],[2640,0.18],[3520,0.09],[4400,0.05]].forEach(([f,g]) => {
+      const osc = ctx.createOscillator(), gain = ctx.createGain();
+      osc.connect(gain); gain.connect(ctx.destination);
+      osc.frequency.value = f;
+      gain.gain.setValueAtTime(g, now);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + 3);
+      osc.start(now); osc.stop(now + 3);
+    });
+    if (navigator.vibrate) navigator.vibrate([400,120,400,120,700]);
+  } catch(e) {}
+}
+
+function startBell() { playBell(); bellTimer = setInterval(playBell, 3200); }
+function stopBell()  { clearInterval(bellTimer); bellTimer = null; }
+
+// ── Code generation ────────────────────────────────────
+function genCode() {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  return Array.from({length:4}, () => chars[Math.floor(Math.random()*chars.length)]).join('');
+}
+
+// ── Carer ──────────────────────────────────────────────
+function initCarer(useSaved) {
+  let code;
+  if (useSaved && savedCode) {
+    code = savedCode;
+    document.getElementById('carer-sub').textContent = 'Your saved code — patient will auto-connect';
+    document.getElementById('code-saved-badge').style.display = 'inline-flex';
+    document.getElementById('save-pair-btn').style.display = 'none';
+    document.getElementById('forget-pair-btn').style.display = 'flex';
+  } else {
+    code = genCode();
+    document.getElementById('carer-sub').textContent = 'Share this code with the patient\'s phone';
+    document.getElementById('code-saved-badge').style.display = 'none';
+    // Show save button only if code differs from saved
+    document.getElementById('save-pair-btn').style.display = 'flex';
+    document.getElementById('forget-pair-btn').style.display = savedCode ? 'flex' : 'none';
+  }
+
+  document.getElementById('carer-code').textContent = code;
+
+  peer = new Peer('carecall-' + code.toLowerCase(), { debug: 0 });
+  peer.on('open', () => setCarerPill('waiting'));
+  peer.on('connection', c => {
+    conn = c;
+    c.on('open', () => { isConnected = true; setCarerPill('connected'); toast('Patient connected ✓'); });
+    c.on('data', d => { if (d.type === 'call') showCall(); });
+    c.on('close', () => { isConnected = false; setCarerPill('waiting'); hideCall(); toast('Patient disconnected'); });
+    c.on('error', () => toast('Connection error'));
+  });
+  peer.on('error', err => {
+    if (err.type === 'unavailable-id') { peer.destroy(); initCarer(useSaved); return; }
+    toast('Network error — check your connection');
+  });
+}
+
+function setCarerPill(state) {
+  const el = document.getElementById('carer-pill'), tx = document.getElementById('carer-pill-text');
+  el.className = 'status-pill';
+  if (state === 'waiting')   { el.classList.add('pill-waiting');   tx.textContent = 'Waiting for patient…'; }
+  if (state === 'connected') { el.classList.add('pill-connected'); tx.textContent = 'Patient connected ✓'; }
+  if (state === 'alerting')  { el.classList.add('pill-alerting');  tx.textContent = 'Patient is calling!'; }
+}
+
+function showCall() {
+  document.getElementById('incoming-overlay').classList.add('active');
+  setCarerPill('alerting'); startBell();
+}
+function hideCall() {
+  document.getElementById('incoming-overlay').classList.remove('active');
+  setCarerPill(isConnected ? 'connected' : 'waiting'); stopBell();
+}
+function acknowledgeCall() {
+  stopBell(); hideCall();
+  if (conn && conn.open) conn.send({ type: 'ack' });
+  toast("Patient notified — you're on the way!");
+}
+
+function copyCode() {
+  const code = document.getElementById('carer-code').textContent;
+  if (navigator.clipboard) navigator.clipboard.writeText(code).then(() => toast('Code copied!'));
+  else toast('Code: ' + code);
+}
+
+function savePairFromCarer() {
+  const code = document.getElementById('carer-code').textContent;
+  savePair(code);
+  savedCode = code;
+  document.getElementById('save-pair-btn').style.display = 'none';
+  document.getElementById('forget-pair-btn').style.display = 'flex';
+  document.getElementById('code-saved-badge').style.display = 'inline-flex';
+  document.getElementById('carer-sub').textContent = 'Your saved code — patient will auto-connect';
+  // Update welcome screen
+  document.getElementById('saved-code-display').textContent = code;
+  document.getElementById('saved-card').style.display = 'block';
+  document.getElementById('divider').style.display = 'flex';
+  toast('✅ Pair saved! Both phones will remember this code');
+}
+
+function forgetPairFromScreen() {
+  clearPair(); savedCode = null;
+  document.getElementById('saved-card').style.display = 'none';
+  document.getElementById('divider').style.display = 'none';
+  document.getElementById('code-saved-badge').style.display = 'none';
+  document.getElementById('save-pair-btn').style.display = 'flex';
+  document.getElementById('forget-pair-btn').style.display = 'none';
+  document.getElementById('carer-sub').textContent = 'Share this code with the patient\'s phone';
+  toast('Saved pair forgotten');
+}
+
+// ── Patient ────────────────────────────────────────────
+function connectToCaregiver() {
+  const raw = document.getElementById('code-input').value.trim().toUpperCase();
+  const errEl = document.getElementById('err-msg');
+  if (raw.length < 4) { errEl.textContent = 'Please enter the 4-character room code'; return; }
+  errEl.textContent = '';
+  unlockAudio();
+  document.getElementById('connect-btn').style.display = 'none';
+  document.getElementById('connecting-row').style.display = 'flex';
+  doPatientConnect(raw, false);
+}
+
+function doPatientConnect(code, isAuto) {
+  peer = new Peer(undefined, { debug: 0 });
+  peer.on('open', () => {
+    conn = peer.connect('carecall-' + code.toLowerCase(), { reliable: true });
+
+    conn.on('open', () => {
+      isConnected = true;
+      if (isAuto) {
+        document.getElementById('auto-overlay').classList.remove('active');
+        autoConnecting = false;
+      }
+      showCallView(code);
+    });
+
+    conn.on('data', d => { if (d.type === 'ack') showAck(); });
+    conn.on('close', () => {
+      isConnected = false; isCalling = false;
+      toast('Lost connection to carer');
+      if (autoConnecting) {
+        document.getElementById('auto-overlay').classList.remove('active');
+        autoConnecting = false;
+      }
+      showConnectView();
+    });
+    conn.on('error', () => {
+      if (autoConnecting) {
+        document.getElementById('auto-overlay').classList.remove('active');
+        autoConnecting = false;
+        showConnectView();
+        document.getElementById('err-msg').textContent = 'Auto-connect failed — carer may not be ready yet';
+        document.getElementById('code-input').value = code;
+      } else {
+        showConnectView();
+        document.getElementById('err-msg').textContent = 'Could not connect — check the code';
+      }
+    });
+
+    setTimeout(() => {
+      if (!isConnected) {
+        if (autoConnecting) {
+          document.getElementById('auto-overlay').classList.remove('active');
+          autoConnecting = false;
+          showConnectView();
+          document.getElementById('err-msg').textContent = 'Carer not ready yet. Try again when their app is open.';
+          document.getElementById('code-input').value = code;
+        } else {
+          showConnectView();
+          document.getElementById('err-msg').textContent = 'Timed out — is the carer\'s phone ready?';
+        }
+      }
+    }, 12000);
+  });
+
+  peer.on('error', () => {
+    if (autoConnecting) {
+      document.getElementById('auto-overlay').classList.remove('active');
+      autoConnecting = false;
+    }
+    showConnectView();
+    document.getElementById('err-msg').textContent = 'Failed — make sure both phones are online';
+  });
+}
+
+function showCallView(connectedCode) {
+  document.getElementById('v-connect').style.display = 'none';
+  document.getElementById('v-call').style.display = 'block';
+
+  // Show save prompt only if no saved pair AND first time connecting AND patient entered manually
+  const pair = loadPair();
+  if (!pair && connectedCode && !savePromptShown) {
+    savePromptShown = true;
+    // Store the code we connected to so we can save it
+    document.getElementById('save-prompt').dataset.code = connectedCode;
+    setTimeout(() => {
+      document.getElementById('save-prompt').style.display = 'block';
+    }, 800);
+  }
+}
+
+function showConnectView() {
+  document.getElementById('connecting-row').style.display = 'none';
+  document.getElementById('connect-btn').style.display = 'flex';
+  document.getElementById('v-connect').style.display = 'block';
+  document.getElementById('v-call').style.display = 'none';
+  isConnected = false; isCalling = false;
+}
+
+function sendCall() {
+  if (!conn || !conn.open) { toast('Not connected to carer'); return; }
+  if (isCalling) return;
+  isCalling = true;
+  conn.send({ type: 'call' });
+  const btn = document.getElementById('call-btn');
+  btn.classList.add('state-calling');
+  btn.querySelector('.call-icon').textContent = '📞';
+  btn.querySelector('.call-label').textContent = 'Calling…';
+  if (navigator.vibrate) navigator.vibrate(250);
+  toast('Alert sent to your carer!');
+}
+
+function showAck() {
+  isCalling = false;
+  document.getElementById('call-zone').style.display = 'none';
+  document.getElementById('ack-box').style.display = 'block';
+  if (navigator.vibrate) navigator.vibrate([100,80,100]);
+  setTimeout(() => {
+    document.getElementById('call-zone').style.display = 'flex';
+    document.getElementById('ack-box').style.display = 'none';
+    const btn = document.getElementById('call-btn');
+    btn.classList.remove('state-calling');
+    btn.querySelector('.call-icon').textContent = '🆘';
+    btn.querySelector('.call-label').textContent = 'Call Carer';
+    isCalling = false;
+  }, 10000);
+}
+
+// ── Save pair from patient side ────────────────────────
+function savePairFromPatient() {
+  const code = document.getElementById('save-prompt').dataset.code;
+  if (!code) return;
+  savePair(code);
+  savedCode = code;
+  document.getElementById('save-prompt').style.display = 'none';
+  // Update welcome screen
+  document.getElementById('saved-code-display').textContent = code;
+  document.getElementById('saved-card').style.display = 'block';
+  document.getElementById('divider').style.display = 'flex';
+  toast('✅ Pair saved! Next time you\'ll connect automatically');
+}
+function dismissSavePrompt() {
+  document.getElementById('save-prompt').style.display = 'none';
+}
+
+// ── Forget from welcome ────────────────────────────────
+function forgetPair() {
+  clearPair(); savedCode = null;
+  document.getElementById('saved-card').style.display = 'none';
+  document.getElementById('divider').style.display = 'none';
+  toast('Saved pair forgotten');
+}
+
+// ── Toast ──────────────────────────────────────────────
+function toast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), 3000);
+}
+
+// ── Cleanup ────────────────────────────────────────────
+function cleanup() {
+  stopBell();
+  try { conn && conn.close(); } catch(e) {}
+  try { peer && peer.destroy(); } catch(e) {}
+  conn = peer = null;
+  isConnected = isCalling = false;
+  savePromptShown = false;
+
+  document.getElementById('carer-code').textContent = '····';
+  document.getElementById('incoming-overlay').classList.remove('active');
+  document.getElementById('auto-overlay').classList.remove('active');
+
+  document.getElementById('connect-btn').style.display = 'flex';
+  document.getElementById('connecting-row').style.display = 'none';
+  document.getElementById('v-connect').style.display = 'block';
+  document.getElementById('v-call').style.display = 'none';
+  document.getElementById('code-input').value = '';
+  document.getElementById('err-msg').textContent = '';
+  document.getElementById('call-zone').style.display = 'flex';
+  document.getElementById('ack-box').style.display = 'none';
+  document.getElementById('save-prompt').style.display = 'none';
+
+  const btn = document.getElementById('call-btn');
+  if (btn) {
+    btn.classList.remove('state-calling');
+    btn.querySelector('.call-icon').textContent = '🆘';
+    btn.querySelector('.call-label').textContent = 'Call Carer';
+  }
+}
+
+// ── Input helpers ──────────────────────────────────────
+const inp = document.getElementById('code-input');
+inp.addEventListener('input', e => { e.target.value = e.target.value.toUpperCase(); });
+inp.addEventListener('keypress', e => { if (e.key === 'Enter') connectToCaregiver(); });
+</script>
+</body>
+</html>
