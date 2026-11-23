@@ -5,7 +5,7 @@
 
 // ── Platform detection & base path for Capacitor compatibility ──
 export const IS_NATIVE = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
-export const BASE_PATH = IS_NATIVE ? '.' : '/CareCall';
+export const BASE_PATH = IS_NATIVE ? '.' : import.meta.env.BASE_URL.replace(/\/$/, '');
 
 // ── Lazy-loading helpers for heavy libraries ──
 const _loadedScripts = {};
