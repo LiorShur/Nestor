@@ -16078,6 +16078,7 @@ window._checkStillness = _checkStillness;
 window._checkOrientationChange = _checkOrientationChange;
 window._onFallDetected = _onFallDetected;
 window._emergencyDown = _emergencyDown;
+window._emergencyKeyboardActivate = _emergencyKeyboardActivate;
 window._emergencyUp = _emergencyUp;
 window._animateEmergencyRing = _animateEmergencyRing;
 window._cancelEmergencyAnim = _cancelEmergencyAnim;
